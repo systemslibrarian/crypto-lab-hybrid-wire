@@ -149,8 +149,9 @@ function escapeHtml(value: string): string {
 function renderTabs(): string {
   return tabs
     .map(function (tab) {
-      const activeClass = state.activeTab === tab.id ? ' active' : '';
-      return '<button class="tab-button' + activeClass + '" data-tab="' + tab.id + '">' + tab.label + '</button>';
+      const isActive = state.activeTab === tab.id;
+      const activeClass = isActive ? ' active' : '';
+      return '<button class="tab-button' + activeClass + '" data-tab="' + tab.id + '" role="tab" aria-selected="' + isActive + '" aria-controls="tab-panel-' + tab.id + '" id="tab-' + tab.id + '">' + tab.label + '</button>';
     })
     .join('');
 }
@@ -172,24 +173,28 @@ function renderHero(): string {
 }
 
 function renderStepList(): string {
-  return '<div class="stepper">' +
+  return '<div class="stepper" role="list" aria-label="Handshake steps">' +
     stepTitles
       .map(function (title, index) {
         const stepNumber = index + 1;
         let stepClass = 'step-item';
-        if (stepNumber < state.currentStep) {
+        const isDone = stepNumber < state.currentStep;
+        const isActive = stepNumber === state.currentStep;
+        if (isDone) {
           stepClass += ' done';
         }
-        if (stepNumber === state.currentStep) {
+        if (isActive) {
           stepClass += ' active';
         }
 
+        const ariaCurrent = isActive ? ' aria-current="step"' : '';
+        const statusLabel = isDone ? 'completed' : isActive ? 'current' : 'upcoming';
         const timeLabel = state.timeline ? formatMs(state.timeline.stepTimes[index]) : 'pending';
         return [
-          '<div class="' + stepClass + '">',
-          '<div class="step-number">' + stepNumber + '</div>',
+          '<div class="' + stepClass + '" role="listitem"' + ariaCurrent + ' aria-label="Step ' + stepNumber + ': ' + title + ' (' + statusLabel + ')">',
+          '<div class="step-number" aria-hidden="true">' + stepNumber + '</div>',
           '<div><div class="step-title">' + title + '</div><div class="step-detail">' + stepDetails[index] + '</div></div>',
-          '<div class="step-time">' + timeLabel + '</div>',
+          '<div class="step-time" aria-label="Duration: ' + timeLabel + '">' + timeLabel + '</div>',
           '</div>',
         ].join('');
       })
@@ -201,7 +206,7 @@ function renderWireDiagram(): string {
   const animateClass = state.currentStep >= 3 ? ' wire-flow' : '';
   return [
     '<div class="wire-diagram">',
-    '<svg viewBox="0 0 820 170" aria-label="Hybrid wire animation">',
+    '<svg viewBox="0 0 820 170" role="img" aria-label="Hybrid wire animation showing X25519 blue wire and ML-KEM purple wire between Bob and Alice">',
     '<text x="20" y="28" fill="#cbd5f5" font-size="14">Bob</text>',
     '<text x="760" y="28" fill="#cbd5f5" font-size="14">Alice</text>',
     '<path class="wire-path wire-blue' + animateClass + '" d="M 72 55 C 240 20, 580 20, 748 55"></path>',
@@ -288,10 +293,12 @@ function renderChatSection(): string {
     '</div>',
     '<div class="chat-form">',
     '<div class="chat-form-row">',
+    '<label for="sender-select" class="sr-only">Select sender</label>',
     '<select class="select" id="sender-select">',
     '<option value="alice">Alice sends</option>',
     '<option value="bob">Bob sends</option>',
     '</select>',
+    '<label for="message-input" class="sr-only">Message to encrypt</label>',
     '<input class="input" id="message-input" type="text" placeholder="Type a message to encrypt" />',
     '<button class="action-button" id="send-button">Send</button>',
     '</div>',
@@ -474,9 +481,9 @@ function render(): void {
   appRoot!.innerHTML = [
     '<div class="app-shell">',
     renderHero(),
-    '<div class="tabs">' + renderTabs() + '</div>',
-    renderPanelContent(),
-    renderNotice(),
+    '<nav class="tabs" role="tablist" aria-label="Demo sections">' + renderTabs() + '</nav>',
+    '<div id="tab-panel-' + state.activeTab + '" role="tabpanel" aria-labelledby="tab-' + state.activeTab + '">' + renderPanelContent() + '</div>',
+    '<div aria-live="polite" role="status">' + renderNotice() + '</div>',
     '<p class="footer-note">Offline runtime only: Vite + TypeScript + Web Crypto + verified noble packages.</p>',
     '</div>',
   ].join('');
@@ -491,6 +498,31 @@ function attachListeners(): void {
       if (nextTab) {
         state.activeTab = nextTab;
         render();
+        const newTab = document.querySelector<HTMLElement>('#tab-' + nextTab);
+        if (newTab) {
+          newTab.focus();
+        }
+      }
+    };
+
+    element.onkeydown = function (event: KeyboardEvent) {
+      const tabButtons = Array.from(document.querySelectorAll<HTMLElement>('[role="tab"]'));
+      const currentIndex = tabButtons.indexOf(element);
+      let targetIndex = -1;
+
+      if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+        targetIndex = (currentIndex + 1) % tabButtons.length;
+      } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+        targetIndex = (currentIndex - 1 + tabButtons.length) % tabButtons.length;
+      } else if (event.key === 'Home') {
+        targetIndex = 0;
+      } else if (event.key === 'End') {
+        targetIndex = tabButtons.length - 1;
+      }
+
+      if (targetIndex >= 0) {
+        event.preventDefault();
+        tabButtons[targetIndex].click();
       }
     };
   });

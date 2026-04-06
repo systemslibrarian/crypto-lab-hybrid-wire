@@ -24,6 +24,8 @@
 
 ## Demo
 
+**Live demo:** https://systemslibrarian.github.io/crypto-lab-hybrid-wire/
+
 The implementation lives in `demos/hybrid-wire/` and includes:
 
 - live six-step handshake visualization

@@ -9,6 +9,10 @@ This demo shows a full **X25519 + ML-KEM-768 hybrid handshake** in the browser:
 - AES-256-GCM encrypted chat using the hybrid-derived session key
 - a small benchmark comparing pure X25519, pure ML-KEM-768, and the hybrid handshake
 
+## Live demo
+
+https://systemslibrarian.github.io/crypto-lab-hybrid-wire/
+
 ## Run locally
 
 ```bash
