@@ -1,0 +1,21 @@
+{
+  "name": "crypto-lab-hybrid-wire",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@noble/curves": "latest",
+    "@noble/post-quantum": "latest"
+  },
+  "devDependencies": {
+    "typescript": "latest",
+    "vite": "latest",
+    "vitest": "latest"
+  }
+}
