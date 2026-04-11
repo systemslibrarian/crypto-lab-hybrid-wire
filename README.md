@@ -1,34 +1,36 @@
 # crypto-lab-hybrid-wire
 
-`crypto-lab-hybrid-wire` is a browser-based demo of **hybrid post-quantum key exchange** using **X25519 + ML-KEM-768** with **HKDF-SHA256** and **AES-256-GCM**.
+## 1. What It Is
 
-## Hybrid Key Exchange catalog entry
+This project is a browser demo of a hybrid key exchange that combines X25519 and ML-KEM-768, then derives a session key with HKDF-SHA-256 for AES-256-GCM message encryption. It addresses the transition problem where systems need confidentiality against both classical and future quantum-capable adversaries. The design is asymmetric and post-quantum-hybrid: two independent key-establishment wires are combined into one session key. The security goal is that the resulting session remains protected if either X25519 or ML-KEM-768 remains secure.
 
-| Field | Value |
-|---|---|
-| Scheme | X25519 + ML-KEM-768 hybrid |
-| Classical component | X25519 (Curve25519 ECDH) |
-| Post-quantum component | ML-KEM-768 (NIST FIPS 203) |
-| Key derivation | HKDF-SHA256 |
-| Security | Safe if either primitive is secure |
-| Handshake overhead | +2,272 bytes vs pure X25519 |
-| Deployed in | Chrome 124+, Cloudflare, AWS, Signal, iCloud |
-| Standard | IETF `draft-ietf-tls-hybrid-design` |
+## 2. When to Use It
 
-## Portfolio connections
+- Deploying internet-facing TLS during post-quantum migration. Hybrid exchange is appropriate when you need practical compatibility today while adding PQ resilience.
+- Protecting long-lived or high-value encrypted traffic. It fits when harvest-now, decrypt-later risk matters and you want both classical and PQ assumptions in the same handshake.
+- Testing protocol behavior before production rollout. It helps teams evaluate handshake overhead, key sizes, and implementation complexity with concrete measurements.
+- Messaging or service bootstrapping that already uses X25519. It is a direct fit when existing systems can add ML-KEM-768 as a second wire without redesigning all crypto.
+- Not for low-power or highly constrained links where bytes are critical. The extra key and ciphertext sizes (+2,272 bytes vs pure X25519) may be too costly.
 
-- `crypto-lab-ratchet-wire` → the classical X25519-only baseline; `hybrid-wire` is the post-quantum upgrade path used in deployments like Signal PQXDH.
-- `crypto-lab-kyber-vault` → shows ML-KEM alone; `hybrid-wire` shows how it combines with X25519 in real production handshakes.
-- `crypto-lab-dilithium-seal` → hybrid-wire handles confidentiality, while Dilithium-style signatures handle authentication.
-- `crypto-lab-iron-serpent` → hybrid-wire negotiates the shared key; symmetric encryption carries the application data.
+## 3. Live Demo
 
-## Demo
+Live GitHub Pages demo: https://systemslibrarian.github.io/crypto-lab-hybrid-wire/
 
-**Live demo:** https://systemslibrarian.github.io/crypto-lab-hybrid-wire/
+The demo lets you step through a six-stage handshake, inspect both wires, and run encrypted chat with tamper detection after session derivation. You can navigate tabs for the live handshake, two-wire breakdown, threat model, deployed examples, and rationale. The benchmark control runs repeated iterations (50) to compare X25519, ML-KEM-768, and hybrid performance.
 
-The implementation lives in `demos/hybrid-wire/` and includes:
+## 4. How to Run Locally
 
-- live six-step handshake visualization
-- threat model and deployment notes
-- encrypted chat with tamper detection
-- browser benchmark for X25519 vs ML-KEM-768 vs hybrid
+```bash
+git clone https://github.com/systemslibrarian/crypto-lab-hybrid-wire.git
+cd crypto-lab-hybrid-wire/demos/hybrid-wire
+npm install
+npm run dev
+```
+
+No environment variables are required.
+
+## 5. Part of the Crypto-Lab Suite
+
+This demo is part of the broader Crypto-Lab collection at https://systemslibrarian.github.io/crypto-lab/.
+
+Whether you eat or drink or whatever you do, do it all for the glory of God. — 1 Corinthians 10:31

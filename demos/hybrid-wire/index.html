@@ -1,6 +1,12 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <script>
+      (function () {
+        const saved = localStorage.getItem('theme');
+        document.documentElement.setAttribute('data-theme', saved ?? 'dark');
+      })();
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
@@ -14,6 +20,9 @@
     <main id="main-content">
       <div id="app"></div>
     </main>
+    <footer style="text-align:center; padding: 1.5rem; font-size: 0.85rem; opacity: 0.7; margin-top: 2rem;">
+      Whether you eat or drink or whatever you do, do it all for the glory of God. — 1 Corinthians 10:31
+    </footer>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

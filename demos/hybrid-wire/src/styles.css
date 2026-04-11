@@ -69,7 +69,46 @@ pre {
 }
 
 .hero {
+  position: relative;
   padding: 1.35rem;
+}
+
+.theme-toggle {
+  position: absolute;
+  top: 0.9rem;
+  right: 0.9rem;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  background: inherit;
+  color: inherit;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.theme-toggle:hover {
+  background: color-mix(in srgb, currentColor 10%, transparent);
+}
+
+html[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+html[data-theme='light'] {
+  color-scheme: light;
+}
+
+html[data-theme='light'] body {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+html[data-theme='light'] img,
+html[data-theme='light'] svg,
+html[data-theme='light'] video,
+html[data-theme='light'] canvas {
+  filter: invert(1) hue-rotate(180deg);
 }
 
 .hero h1 {

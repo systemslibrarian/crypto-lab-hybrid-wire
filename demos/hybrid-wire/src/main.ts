@@ -137,6 +137,37 @@ const state: AppState = {
   notice: '',
 };
 
+type ThemeMode = 'dark' | 'light';
+
+function getThemeMode(): ThemeMode {
+  return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+}
+
+function themeButtonState(theme: ThemeMode): { icon: string; label: string } {
+  if (theme === 'dark') {
+    return { icon: '🌙', label: 'Switch to light mode' };
+  }
+  return { icon: '☀️', label: 'Switch to dark mode' };
+}
+
+function applyTheme(theme: ThemeMode): void {
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem('theme', theme);
+  syncThemeToggleButton();
+}
+
+function syncThemeToggleButton(): void {
+  const button = document.querySelector<HTMLButtonElement>('#theme-toggle');
+  if (!button) {
+    return;
+  }
+
+  const theme = getThemeMode();
+  const nextState = themeButtonState(theme);
+  button.textContent = nextState.icon;
+  button.setAttribute('aria-label', nextState.label);
+}
+
 function escapeHtml(value: string): string {
   return value
     .replaceAll('&', '&amp;')
@@ -157,8 +188,12 @@ function renderTabs(): string {
 }
 
 function renderHero(): string {
+  const theme = getThemeMode();
+  const toggle = themeButtonState(theme);
+
   return [
-    '<section class="hero">',
+    '<header class="hero">',
+    '<button id="theme-toggle" class="theme-toggle" type="button" aria-label="' + toggle.label + '">' + toggle.icon + '</button>',
     '<h1>X25519 + ML-KEM-768</h1>',
     '<p><strong>Hybrid post-quantum key exchange</strong> for the crypto-compare portfolio.</p>',
     '<p>This demo bridges ratchet-wire and kyber-vault by showing how classical and post-quantum secrets combine into the handshake protecting real traffic today.</p>',
@@ -168,7 +203,7 @@ function renderHero(): string {
     '<span class="badge badge-info">AES-256-GCM secure chat</span>',
     '<span class="badge badge-info">No runtime CDN dependencies</span>',
     '</div>',
-    '</section>',
+    '</header>',
   ].join('');
 }
 
@@ -489,6 +524,7 @@ function render(): void {
   ].join('');
 
   attachListeners();
+  syncThemeToggleButton();
 }
 
 function attachListeners(): void {
@@ -579,6 +615,14 @@ function attachListeners(): void {
       }
     };
   });
+
+  const themeToggle = document.querySelector<HTMLButtonElement>('#theme-toggle');
+  if (themeToggle) {
+    themeToggle.onclick = function () {
+      const current = getThemeMode();
+      applyTheme(current === 'dark' ? 'light' : 'dark');
+    };
+  }
 }
 
 async function initializeHandshake(): Promise<void> {

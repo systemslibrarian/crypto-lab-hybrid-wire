@@ -1,57 +1,36 @@
 # crypto-lab-hybrid-wire demo
 
-This demo shows a full **X25519 + ML-KEM-768 hybrid handshake** in the browser:
+## 1. What It Is
 
-- a six-step live walkthrough of the hybrid key exchange
-- a dual-wire view for the classical and post-quantum components
-- a threat-model explanation for harvest-now, decrypt-later attacks
-- deployed-today examples from browsers, CDNs, messaging, and SSH
-- AES-256-GCM encrypted chat using the hybrid-derived session key
-- a small benchmark comparing pure X25519, pure ML-KEM-768, and the hybrid handshake
+This demo implements a hybrid key exchange that combines X25519 and ML-KEM-768, then derives a shared session key with HKDF-SHA-256 for AES-256-GCM encryption. It solves the transition problem of protecting sessions against both present-day classical attacks and future quantum-capable attackers. The protocol is asymmetric and post-quantum-hybrid because it mixes two independent key-establishment primitives into one output key. Security is designed so the session key remains safe if either primitive remains secure.
 
-## Live demo
+## 2. When to Use It
 
-https://systemslibrarian.github.io/crypto-lab-hybrid-wire/
+- Migrating TLS or secure transport stacks toward post-quantum readiness. Hybrid mode allows incremental rollout without abandoning mature classical components.
+- Protecting traffic with long confidentiality lifetimes. It is useful when harvest-now, decrypt-later risk is part of your threat model.
+- Validating implementation and performance impact before production rollout. The demo exposes concrete handshake steps, sizes, and timing.
+- Extending existing X25519-based systems with a PQ wire. It fits architectures that want compatibility while introducing ML-KEM-768.
+- Not ideal for very constrained bandwidth paths. The additional hybrid overhead can be too expensive where payload size is tightly limited.
 
-## Run locally
+## 3. Live Demo
+
+Live GitHub Pages demo: https://systemslibrarian.github.io/crypto-lab-hybrid-wire/
+
+You can walk through each handshake phase, inspect the two-wire model, and run encrypted chat with tamper detection after key derivation. The interface includes tab controls for handshake flow, wire details, threat model, current deployments, and rationale. A benchmark control runs 50 iterations to compare X25519, ML-KEM-768, and hybrid execution rates.
+
+## 4. How to Run Locally
 
 ```bash
+git clone https://github.com/systemslibrarian/crypto-lab-hybrid-wire.git
+cd crypto-lab-hybrid-wire/demos/hybrid-wire
 npm install
 npm run dev
 ```
 
-Optional checks:
+No environment variables are required.
 
-```bash
-npm test
-npm run build
-```
+## 5. Part of the Crypto-Lab Suite
 
-## Package sources
+This project is one entry in the broader suite at https://systemslibrarian.github.io/crypto-lab/.
 
-The implementation uses verified package sources and Web Crypto primitives:
-
-- `@noble/post-quantum` for `ml_kem768`
-- `@noble/curves` for X25519 fallback support when native Web Crypto X25519 is unavailable
-- browser `crypto.subtle` for HKDF-SHA-256 and AES-256-GCM
-
-## Why hybrid instead of pure post-quantum?
-
-A hybrid combiner keeps the session safe if **either** component remains secure:
-
-- if X25519 stays secure, the session survives even if the PQ wire is weakened
-- if ML-KEM-768 stays secure, the session survives even if a future quantum computer threatens X25519
-- HKDF-SHA-256 mixes both secrets into a single 32-byte session key suitable for AES-256-GCM
-
-## References
-
-- IETF hybrid key exchange draft: https://datatracker.ietf.org/doc/draft-ietf-tls-hybrid-design/
-- ML-KEM FIPS 203: https://csrc.nist.gov/pubs/fips/203/final
-- NIST SP 800-56C Rev. 2: https://csrc.nist.gov/publications/detail/sp/800-56c/rev-2/final
-- Chromium deployment note: https://blog.chromium.org/2023/08/protecting-chrome-traffic-with-hybrid.html
-
-## Notes
-
-- The app runs fully offline after `npm install`.
-- No external CDNs are required at runtime.
-- The X25519 module feature-detects native Web Crypto support and falls back to `@noble/curves` when needed.
+Whether you eat or drink or whatever you do, do it all for the glory of God. — 1 Corinthians 10:31

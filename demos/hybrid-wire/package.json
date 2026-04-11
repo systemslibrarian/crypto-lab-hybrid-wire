@@ -7,13 +7,15 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "deploy": "npm run build && gh-pages -d dist"
   },
   "dependencies": {
     "@noble/curves": "latest",
     "@noble/post-quantum": "latest"
   },
   "devDependencies": {
+    "gh-pages": "^6.3.0",
     "typescript": "latest",
     "vite": "latest",
     "vitest": "latest"
