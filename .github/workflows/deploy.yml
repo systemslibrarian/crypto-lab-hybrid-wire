@@ -35,6 +35,12 @@ jobs:
 
       - run: npm run build
 
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Accessibility + mobile audit (axe-core, WCAG A/AA)
+        run: npm run audit:a11y
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: demos/hybrid-wire/dist

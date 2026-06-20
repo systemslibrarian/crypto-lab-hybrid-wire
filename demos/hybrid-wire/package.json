@@ -8,6 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "audit:a11y": "node scripts/a11y-audit.mjs",
     "deploy": "npm run build && gh-pages -d dist"
   },
   "dependencies": {
@@ -15,7 +16,9 @@
     "@noble/post-quantum": "latest"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.3",
     "gh-pages": "^6.3.0",
+    "playwright": "^1.61.0",
     "typescript": "latest",
     "vite": "latest",
     "vitest": "latest"

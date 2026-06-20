@@ -3,6 +3,7 @@ import './styles.css';
 import { runBenchmark, type BenchmarkResult } from './benchmark';
 import { combineSecrets, generateHybridKeyPair, hybridDecapsulate, type HybridKeyPair } from './crypto/hybrid';
 import { mlkemDecapsulate, mlkemEncapsulate } from './crypto/mlkem768';
+import { evaluateResilience } from './crypto/security';
 import { decryptMessage, encryptMessage, type EncryptedMessage, type HybridSession } from './crypto/session';
 import { bytesEqual, fingerprint, formatMs, nowMs, shortHex, toHex } from './crypto/utils';
 import { generateX25519KeyPair, x25519SharedSecret, type X25519KeyPair } from './crypto/x25519';
@@ -43,6 +44,8 @@ interface AppState {
   benchmark: BenchmarkResult | null;
   benchmarkStatus: 'idle' | 'running';
   tamperedSession: boolean;
+  breakX25519: boolean;
+  breakMlkem: boolean;
   notice: string;
 }
 
@@ -134,6 +137,8 @@ const state: AppState = {
   benchmark: null,
   benchmarkStatus: 'idle',
   tamperedSession: false,
+  breakX25519: false,
+  breakMlkem: false,
   notice: '',
 };
 
@@ -242,16 +247,16 @@ function renderWireDiagram(): string {
   return [
     '<div class="wire-diagram">',
     '<svg viewBox="0 0 820 170" role="img" aria-label="Hybrid wire animation showing X25519 blue wire and ML-KEM purple wire between Bob and Alice">',
-    '<text x="20" y="28" fill="#cbd5f5" font-size="14">Bob</text>',
-    '<text x="760" y="28" fill="#cbd5f5" font-size="14">Alice</text>',
+    '<text class="diagram-label" x="20" y="28" font-size="14">Bob</text>',
+    '<text class="diagram-label" x="760" y="28" font-size="14">Alice</text>',
     '<path class="wire-path wire-blue' + animateClass + '" d="M 72 55 C 240 20, 580 20, 748 55"></path>',
     '<path class="wire-path wire-purple' + animateClass + '" d="M 72 115 C 240 150, 580 150, 748 115"></path>',
     '<circle class="node-dot" cx="72" cy="55" r="7"></circle>',
     '<circle class="node-dot" cx="748" cy="55" r="7"></circle>',
     '<circle class="node-dot" cx="72" cy="115" r="7"></circle>',
     '<circle class="node-dot" cx="748" cy="115" r="7"></circle>',
-    '<text x="280" y="42" fill="#93c5fd" font-size="13">X25519 wire</text>',
-    '<text x="280" y="150" fill="#d8b4fe" font-size="13">ML-KEM wire</text>',
+    '<text class="diagram-label-blue" x="280" y="42" font-size="13">X25519 wire</text>',
+    '<text class="diagram-label-purple" x="280" y="150" font-size="13">ML-KEM wire</text>',
     '</svg>',
     '</div>',
   ].join('');
@@ -264,13 +269,34 @@ function renderMatchCard(): string {
 
   const keysMatch = bytesEqual(state.timeline.aliceSessionKey, state.timeline.bobSessionKey);
   const status = keysMatch ? '✅ Session keys match' : '⚠️ Session keys diverged';
-  const keyHex = shortHex(state.timeline.aliceSessionKey, 24);
 
   return [
     '<div class="match-card">',
     '<h3>' + status + '</h3>',
-    '<p><strong>Combined key:</strong> <code>' + keyHex + '</code></p>',
-    '<p>HKDF mixes the classical X25519 secret and the post-quantum ML-KEM secret into one 32-byte session key. This mirrors the combiner design described in the IETF hybrid draft.</p>',
+    '<p>HKDF-SHA-256 mixes the classical X25519 secret and the post-quantum ML-KEM secret into one 32-byte AES-256-GCM session key. Watch both secrets feed the combiner — neither half alone produces the key.</p>',
+    renderCombinerFlow(),
+    '<p class="footer-note">This mirrors the combiner design in IETF draft-ietf-tls-hybrid-design and NIST SP 800-56C Rev. 2.</p>',
+    '</div>',
+  ].join('');
+}
+
+function renderCombinerFlow(): string {
+  if (!state.timeline) {
+    return '';
+  }
+
+  const x25519Hex = shortHex(state.timeline.aliceX25519Secret, 8);
+  const mlkemHex = shortHex(state.timeline.aliceMlkemSecret, 8);
+  const keyHex = shortHex(state.timeline.aliceSessionKey, 16);
+
+  return [
+    '<div class="combiner-flow" role="group" aria-label="HKDF combiner">',
+    '<p class="sr-only">The 32-byte X25519 secret and the 32-byte ML-KEM secret are concatenated and run through HKDF-SHA-256 to derive the 32-byte session key.</p>',
+    '<div class="combiner-input blue"><span class="combiner-tag">X25519 secret · 32 B</span><code>' + x25519Hex + '</code></div>',
+    '<div class="combiner-op" aria-hidden="true">‖</div>',
+    '<div class="combiner-input purple"><span class="combiner-tag">ML-KEM secret · 32 B</span><code>' + mlkemHex + '</code></div>',
+    '<div class="combiner-op" aria-hidden="true">→ HKDF →</div>',
+    '<div class="combiner-output"><span class="combiner-tag">Session key · 32 B</span><code>' + keyHex + '</code></div>',
     '</div>',
   ].join('');
 }
@@ -421,11 +447,77 @@ function renderWiresTab(): string {
   ].join('');
 }
 
+function renderResilienceExplorer(): string {
+  const verdict = evaluateResilience(state.breakX25519, state.breakMlkem);
+
+  const x25519Toggle = [
+    '<button type="button" role="switch" class="resilience-toggle blue' + (state.breakX25519 ? ' on' : '') + '" id="break-x25519" aria-checked="' + state.breakX25519 + '">',
+    '<span class="resilience-toggle-track" aria-hidden="true"><span class="resilience-toggle-thumb"></span></span>',
+    '<span class="resilience-toggle-label">' + (state.breakX25519 ? 'X25519 broken' : 'X25519 secure') + '</span>',
+    '</button>',
+  ].join('');
+
+  const mlkemToggle = [
+    '<button type="button" role="switch" class="resilience-toggle purple' + (state.breakMlkem ? ' on' : '') + '" id="break-mlkem" aria-checked="' + state.breakMlkem + '">',
+    '<span class="resilience-toggle-track" aria-hidden="true"><span class="resilience-toggle-thumb"></span></span>',
+    '<span class="resilience-toggle-label">' + (state.breakMlkem ? 'ML-KEM-768 broken' : 'ML-KEM-768 secure') + '</span>',
+    '</button>',
+  ].join('');
+
+  const verdictIcon = verdict.level === 'compromised' ? '🔓' : verdict.level === 'degraded' ? '🛡️' : '🔒';
+
+  return [
+    '<div class="resilience-card">',
+    '<h3>Prove it yourself: break a wire</h3>',
+    '<p>Toggle a wire to "broken" and watch the verdict. The session only fails when <strong>both</strong> wires fall — break either one alone and the other still carries the key.</p>',
+    '<div class="resilience-controls">' + x25519Toggle + mlkemToggle + '</div>',
+    renderResilienceWires(),
+    '<div class="resilience-verdict ' + verdict.level + '" role="status" aria-live="polite">',
+    '<div class="resilience-verdict-head"><span class="resilience-verdict-icon" aria-hidden="true">' + verdictIcon + '</span><strong>' + verdict.headline + '</strong></div>',
+    '<p>' + verdict.detail + '</p>',
+    '</div>',
+    '</div>',
+  ].join('');
+}
+
+function renderResilienceWires(): string {
+  const blueClass = 'wire-path wire-blue' + (state.breakX25519 ? ' wire-broken' : '');
+  const purpleClass = 'wire-path wire-purple' + (state.breakMlkem ? ' wire-broken' : '');
+  const blueBreak = state.breakX25519
+    ? '<text class="diagram-break" x="410" y="48" font-size="22" text-anchor="middle" aria-hidden="true">✕</text>'
+    : '';
+  const purpleBreak = state.breakMlkem
+    ? '<text class="diagram-break" x="410" y="138" font-size="22" text-anchor="middle" aria-hidden="true">✕</text>'
+    : '';
+
+  return [
+    '<div class="wire-diagram">',
+    '<svg viewBox="0 0 820 170" role="img" aria-label="Two hybrid wires; a broken wire is marked with an X">',
+    '<text class="diagram-label" x="20" y="28" font-size="14">Bob</text>',
+    '<text class="diagram-label" x="760" y="28" font-size="14">Alice</text>',
+    '<path class="' + blueClass + '" d="M 72 55 C 240 20, 580 20, 748 55"></path>',
+    '<path class="' + purpleClass + '" d="M 72 115 C 240 150, 580 150, 748 115"></path>',
+    '<circle class="node-dot" cx="72" cy="55" r="7"></circle>',
+    '<circle class="node-dot" cx="748" cy="55" r="7"></circle>',
+    '<circle class="node-dot" cx="72" cy="115" r="7"></circle>',
+    '<circle class="node-dot" cx="748" cy="115" r="7"></circle>',
+    '<text class="diagram-label-blue" x="280" y="42" font-size="13">X25519 wire</text>',
+    '<text class="diagram-label-purple" x="280" y="150" font-size="13">ML-KEM wire</text>',
+    blueBreak,
+    purpleBreak,
+    '</svg>',
+    '</div>',
+  ].join('');
+}
+
 function renderThreatTab(): string {
   return [
     '<section class="panel">',
     '<h2>Threat model</h2>',
-    '<div class="table-card">',
+    '<p>The whole point of hybrid is one claim: <strong>the session survives as long as either wire holds.</strong> Try to break it below.</p>',
+    renderResilienceExplorer(),
+    '<h3 id="threat-matrix-heading">Full threat matrix</h3>',
+    '<div class="table-card" tabindex="0" role="region" aria-labelledby="threat-matrix-heading">',
     '<table><thead><tr><th>Attacker capability</th><th>Transcript access</th><th>Wire status</th><th>Session safety</th></tr></thead><tbody>',
     threatRows
       .map(function (row) {
@@ -604,6 +696,24 @@ function attachListeners(): void {
   if (benchmarkButton) {
     benchmarkButton.onclick = function () {
       void handleBenchmark();
+    };
+  }
+
+  const breakX25519Toggle = document.querySelector<HTMLButtonElement>('#break-x25519');
+  if (breakX25519Toggle) {
+    breakX25519Toggle.onclick = function () {
+      state.breakX25519 = !state.breakX25519;
+      render();
+      document.querySelector<HTMLButtonElement>('#break-x25519')?.focus();
+    };
+  }
+
+  const breakMlkemToggle = document.querySelector<HTMLButtonElement>('#break-mlkem');
+  if (breakMlkemToggle) {
+    breakMlkemToggle.onclick = function () {
+      state.breakMlkem = !state.breakMlkem;
+      render();
+      document.querySelector<HTMLButtonElement>('#break-mlkem')?.focus();
     };
   }
 

@@ -3,3 +3,8 @@ dist/
 coverage/
 .vite/
 .DS_Store
+
+# Playwright a11y audit artifacts (browsers live in the user cache, not the repo)
+playwright-report/
+test-results/
+.cache/
