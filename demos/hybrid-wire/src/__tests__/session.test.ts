@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { generateHybridKeyPair, hybridEncapsulate } from '../crypto/hybrid';
 import { decryptMessage, encryptMessage, type HybridSession } from '../crypto/session';
+import { fromBase64, toBase64 } from '../crypto/utils';
 import { generateX25519KeyPair } from '../crypto/x25519';
 
 async function establishSession(): Promise<{ alice: HybridSession; bob: HybridSession }> {
@@ -45,14 +46,28 @@ describe('hybrid secure channel', () => {
     expect(first.iv).not.toBe(second.iv);
   });
 
-  it('rejects a ciphertext whose metadata was altered', async () => {
+  it('rejects a replayed message whose number was changed (IV binding)', async () => {
     const { alice, bob } = await establishSession();
     const encrypted = await encryptMessage(alice, 'tamper me', 1);
 
-    // Replay the ciphertext under a different message number: the recipient
-    // re-derives a different IV and the AES-GCM tag no longer authenticates.
+    // The IV is derived from the message number, so replaying under a different
+    // number makes the recipient's re-derived IV disagree with the transmitted
+    // IV. This is caught by the explicit IV check *before* AES-GCM runs.
     const forged = { ...encrypted, messageNumber: 99 };
 
-    await expect(decryptMessage(bob, forged)).rejects.toThrow(/failed|verification/i);
+    await expect(decryptMessage(bob, forged)).rejects.toThrow(/IV verification failed/i);
+  });
+
+  it('rejects a ciphertext with a flipped byte (AES-GCM authentication)', async () => {
+    const { alice, bob } = await establishSession();
+    const encrypted = await encryptMessage(alice, 'tamper me', 1);
+
+    // Keep the metadata (and therefore the IV) intact so the IV check passes,
+    // then flip one ciphertext byte. Now the AES-GCM tag is what rejects it.
+    const raw = fromBase64(encrypted.ciphertext);
+    raw[0] ^= 0x01;
+    const forged = { ...encrypted, ciphertext: toBase64(raw) };
+
+    await expect(decryptMessage(bob, forged)).rejects.toThrow(/Authentication failed/i);
   });
 });

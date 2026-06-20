@@ -242,24 +242,42 @@ function renderStepList(): string {
     '</div>';
 }
 
-function renderWireDiagram(): string {
-  const animateClass = state.currentStep >= 3 ? ' wire-flow' : '';
+// Shared wire-diagram SVG. The handshake animation and the resilience explorer
+// draw the same two-wire scaffold (identical geometry); only the path classes,
+// aria-label, and any overlay marks differ. Keeping one source of truth means a
+// geometry tweak can never drift between the two diagrams.
+function renderWireSvg(options: {
+  ariaLabel: string;
+  blueClass: string;
+  purpleClass: string;
+  overlay?: string;
+}): string {
   return [
     '<div class="wire-diagram">',
-    '<svg viewBox="0 0 820 170" role="img" aria-label="Hybrid wire animation showing X25519 blue wire and ML-KEM purple wire between Bob and Alice">',
+    '<svg viewBox="0 0 820 170" role="img" aria-label="' + options.ariaLabel + '">',
     '<text class="diagram-label" x="20" y="28" font-size="14">Bob</text>',
     '<text class="diagram-label" x="760" y="28" font-size="14">Alice</text>',
-    '<path class="wire-path wire-blue' + animateClass + '" d="M 72 55 C 240 20, 580 20, 748 55"></path>',
-    '<path class="wire-path wire-purple' + animateClass + '" d="M 72 115 C 240 150, 580 150, 748 115"></path>',
+    '<path class="' + options.blueClass + '" d="M 72 55 C 240 20, 580 20, 748 55"></path>',
+    '<path class="' + options.purpleClass + '" d="M 72 115 C 240 150, 580 150, 748 115"></path>',
     '<circle class="node-dot" cx="72" cy="55" r="7"></circle>',
     '<circle class="node-dot" cx="748" cy="55" r="7"></circle>',
     '<circle class="node-dot" cx="72" cy="115" r="7"></circle>',
     '<circle class="node-dot" cx="748" cy="115" r="7"></circle>',
     '<text class="diagram-label-blue" x="280" y="42" font-size="13">X25519 wire</text>',
     '<text class="diagram-label-purple" x="280" y="150" font-size="13">ML-KEM wire</text>',
+    options.overlay ?? '',
     '</svg>',
     '</div>',
   ].join('');
+}
+
+function renderWireDiagram(): string {
+  const animateClass = state.currentStep >= 3 ? ' wire-flow' : '';
+  return renderWireSvg({
+    ariaLabel: 'Hybrid wire animation showing X25519 blue wire and ML-KEM purple wire between Bob and Alice',
+    blueClass: 'wire-path wire-blue' + animateClass,
+    purpleClass: 'wire-path wire-purple' + animateClass,
+  });
 }
 
 function renderMatchCard(): string {
@@ -481,8 +499,6 @@ function renderResilienceExplorer(): string {
 }
 
 function renderResilienceWires(): string {
-  const blueClass = 'wire-path wire-blue' + (state.breakX25519 ? ' wire-broken' : '');
-  const purpleClass = 'wire-path wire-purple' + (state.breakMlkem ? ' wire-broken' : '');
   const blueBreak = state.breakX25519
     ? '<text class="diagram-break" x="410" y="48" font-size="22" text-anchor="middle" aria-hidden="true">✕</text>'
     : '';
@@ -490,24 +506,12 @@ function renderResilienceWires(): string {
     ? '<text class="diagram-break" x="410" y="138" font-size="22" text-anchor="middle" aria-hidden="true">✕</text>'
     : '';
 
-  return [
-    '<div class="wire-diagram">',
-    '<svg viewBox="0 0 820 170" role="img" aria-label="Two hybrid wires; a broken wire is marked with an X">',
-    '<text class="diagram-label" x="20" y="28" font-size="14">Bob</text>',
-    '<text class="diagram-label" x="760" y="28" font-size="14">Alice</text>',
-    '<path class="' + blueClass + '" d="M 72 55 C 240 20, 580 20, 748 55"></path>',
-    '<path class="' + purpleClass + '" d="M 72 115 C 240 150, 580 150, 748 115"></path>',
-    '<circle class="node-dot" cx="72" cy="55" r="7"></circle>',
-    '<circle class="node-dot" cx="748" cy="55" r="7"></circle>',
-    '<circle class="node-dot" cx="72" cy="115" r="7"></circle>',
-    '<circle class="node-dot" cx="748" cy="115" r="7"></circle>',
-    '<text class="diagram-label-blue" x="280" y="42" font-size="13">X25519 wire</text>',
-    '<text class="diagram-label-purple" x="280" y="150" font-size="13">ML-KEM wire</text>',
-    blueBreak,
-    purpleBreak,
-    '</svg>',
-    '</div>',
-  ].join('');
+  return renderWireSvg({
+    ariaLabel: 'Two hybrid wires; a broken wire is marked with an X',
+    blueClass: 'wire-path wire-blue' + (state.breakX25519 ? ' wire-broken' : ''),
+    purpleClass: 'wire-path wire-purple' + (state.breakMlkem ? ' wire-broken' : ''),
+    overlay: blueBreak + purpleBreak,
+  });
 }
 
 function renderThreatTab(): string {
