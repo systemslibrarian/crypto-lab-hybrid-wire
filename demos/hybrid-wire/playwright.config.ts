@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const PORT = 4222;
+const PORT = 4370;
 const BASE = '/crypto-lab-hybrid-wire/';
 
 export default defineConfig({
