@@ -37,6 +37,7 @@
 
   --metric-num: #b3d4ff;
   --step-time: #93c5fd;
+  --diagram-break: #ef4444;
 
   --good-surface: rgba(7, 28, 20, 0.9);
   --good-border: rgba(34, 197, 94, 0.35);
@@ -66,7 +67,7 @@
   font-family: Inter, 'Segoe UI', sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  background: var(--bg);
+  background-color: var(--bg);
   color: var(--text);
 }
 
@@ -99,13 +100,14 @@ html[data-theme='light'] {
   --heading-accent: #1e3a66;
   --link: #1d4ed8;
 
-  --accent-blue: #2563eb;
+  --accent-blue: #1d4ed8;
   --accent-purple: #7c3aed;
   --node-dot: #1e293b;
   --toggle-thumb: #ffffff;
 
   --metric-num: #1d4ed8;
   --step-time: #1d4ed8;
+  --diagram-break: #b91c1c;
 
   --good-surface: rgba(220, 252, 231, 0.85);
   --good-border: rgba(22, 163, 74, 0.45);
@@ -189,7 +191,7 @@ pre {
 .benchmark-card,
 .connection-card {
   border: 1px solid var(--border);
-  background: var(--surface);
+  background-color: var(--surface);
   border-radius: 18px;
   box-shadow: var(--shadow);
 }
@@ -215,7 +217,7 @@ pre {
 }
 
 .theme-toggle:hover {
-  background: color-mix(in srgb, currentColor 10%, transparent);
+  background-color: color-mix(in srgb, currentColor 10%, transparent);
 }
 
 .hero h1 {
@@ -243,7 +245,7 @@ pre {
   padding: 0.25rem 0.7rem;
   font-size: 0.85rem;
   border: 1px solid var(--border);
-  background: var(--surface-raised);
+  background-color: var(--surface-raised);
   color: var(--text);
 }
 
@@ -273,7 +275,7 @@ pre {
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 0.65rem 0.95rem;
-  background: var(--surface-raised);
+  background-color: var(--surface-raised);
   color: var(--text);
   cursor: pointer;
   transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
@@ -314,7 +316,7 @@ pre {
   align-items: center;
   padding: 0.75rem 0.9rem;
   border-radius: 14px;
-  background: var(--surface-inset);
+  background-color: var(--surface-inset);
   border: 1px solid var(--border-soft);
 }
 
@@ -333,7 +335,7 @@ pre {
   border-radius: 999px;
   display: grid;
   place-items: center;
-  background: var(--step-number-bg);
+  background-color: var(--step-number-bg);
   border: 1px solid var(--border);
   font-weight: 700;
 }
@@ -406,7 +408,7 @@ pre {
 .key-list div {
   padding: 0.55rem 0.65rem;
   border-radius: 10px;
-  background: var(--surface-inset);
+  background-color: var(--surface-inset);
 }
 
 .label {
@@ -425,7 +427,7 @@ pre {
   margin: 0.9rem 0;
   padding: 0.5rem;
   border-radius: 14px;
-  background: var(--surface-sunken);
+  background-color: var(--surface-sunken);
   border: 1px solid var(--border-soft);
 }
 
@@ -448,7 +450,7 @@ pre {
 }
 
 .diagram-break {
-  fill: #ef4444;
+  fill: var(--diagram-break);
 }
 
 .wire-path {
@@ -488,7 +490,7 @@ pre {
   margin-top: 0.9rem;
   padding: 1rem;
   border: 1px solid var(--good-border);
-  background: var(--good-surface);
+  background-color: var(--good-surface);
 }
 
 .match-card h3 {
@@ -511,7 +513,7 @@ pre {
   padding: 0.65rem 0.75rem;
   border-radius: 12px;
   border: 1px solid var(--border);
-  background: var(--surface-sunken);
+  background-color: var(--surface-sunken);
 }
 
 .combiner-input.blue {
@@ -524,7 +526,7 @@ pre {
 
 .combiner-output {
   border-color: var(--good-border);
-  background: var(--good-surface);
+  background-color: var(--good-surface);
 }
 
 .combiner-tag {
@@ -553,7 +555,7 @@ pre {
   padding: 1rem;
   border-radius: 16px;
   border: 1px solid var(--accent-blue);
-  background: var(--surface);
+  background-color: var(--surface);
 }
 
 .resilience-card h3 {
@@ -574,7 +576,7 @@ pre {
   padding: 0.55rem 0.8rem;
   border-radius: 999px;
   border: 1px solid var(--border);
-  background: var(--surface-raised);
+  background-color: var(--surface-raised);
   color: var(--text);
   cursor: pointer;
   min-height: 44px;
@@ -586,7 +588,7 @@ pre {
   width: 2.6rem;
   height: 1.4rem;
   border-radius: 999px;
-  background: rgba(100, 116, 139, 0.45);
+  background-color: rgba(100, 116, 139, 0.45);
   transition: background 0.15s ease;
   flex: 0 0 auto;
 }
@@ -598,13 +600,13 @@ pre {
   width: 1.08rem;
   height: 1.08rem;
   border-radius: 50%;
-  background: var(--toggle-thumb);
+  background-color: var(--toggle-thumb);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   transition: transform 0.15s ease;
 }
 
 .resilience-toggle.on .resilience-toggle-track {
-  background: rgba(220, 38, 38, 0.8);
+  background-color: rgba(220, 38, 38, 0.8);
 }
 
 .resilience-toggle.on .resilience-toggle-thumb {
@@ -636,7 +638,7 @@ pre {
   padding: 0.85rem 1rem;
   border-radius: 14px;
   border: 1px solid var(--border);
-  background: var(--surface-raised);
+  background-color: var(--surface-raised);
 }
 
 .resilience-verdict-head {
@@ -654,23 +656,23 @@ pre {
 
 .resilience-verdict.protected {
   border-color: var(--good-border);
-  background: var(--good-surface);
+  background-color: var(--good-surface);
 }
 
 .resilience-verdict.degraded {
   border-color: var(--warn-border);
-  background: var(--warn-surface);
+  background-color: var(--warn-surface);
 }
 
 .resilience-verdict.compromised {
   border-color: var(--bad-border);
-  background: var(--bad-surface);
+  background-color: var(--bad-surface);
 }
 
 .formula {
   padding: 0.9rem;
   border-radius: 12px;
-  background: var(--surface-sunken);
+  background-color: var(--surface-sunken);
   border: 1px solid var(--border-soft);
   overflow-x: auto;
 }
@@ -695,7 +697,7 @@ pre {
 .quote {
   padding: 0.9rem 1rem;
   border-left: 3px solid var(--accent-blue);
-  background: var(--quote-bg);
+  background-color: var(--quote-bg);
   color: var(--quote-text);
 }
 
@@ -728,8 +730,18 @@ pre {
   padding: 0.7rem 0.8rem;
   border-radius: 10px;
   border: 1px solid var(--border);
-  background: var(--surface-raised);
+  background-color: var(--surface-raised);
   color: var(--text);
+}
+
+/* Custom select: suppress the native arrow (which ignores our dark styling in
+   some engines) and draw a neutral chevron that works in both themes. */
+.select {
+  appearance: none;
+  padding-right: 1.8rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%238b949e' stroke-width='2' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.6rem center;
 }
 
 .message-list {
@@ -741,7 +753,7 @@ pre {
   padding: 0.8rem;
   border-radius: 14px;
   border: 1px solid var(--border-soft);
-  background: var(--surface-raised);
+  background-color: var(--surface-raised);
 }
 
 .message-card.alice {
@@ -768,17 +780,17 @@ pre {
 }
 
 .status-authenticated {
-  background: var(--pill-auth-bg);
+  background-color: var(--pill-auth-bg);
   color: var(--pill-auth-text);
 }
 
 .status-pending {
-  background: var(--pill-pending-bg);
+  background-color: var(--pill-pending-bg);
   color: var(--pill-pending-text);
 }
 
 .status-tampered {
-  background: var(--pill-tamper-bg);
+  background-color: var(--pill-tamper-bg);
   color: var(--pill-tamper-text);
 }
 
@@ -854,7 +866,7 @@ pre {
   top: -100%;
   left: 0.5rem;
   padding: 0.6rem 1rem;
-  background: var(--skip-bg);
+  background-color: var(--skip-bg);
   color: var(--text);
   border: 2px solid var(--accent-blue);
   border-radius: 8px;
