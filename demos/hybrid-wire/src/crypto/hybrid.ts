@@ -30,6 +30,22 @@ async function getSubtle(): Promise<SubtleCrypto> {
   return subtle;
 }
 
+// Combiner note — transcript binding is intentionally OUT of scope here.
+//
+// This follows draft-ietf-tls-hybrid-design, where the two shared secrets are
+// concatenated (x25519_secret || mlkem_secret) and fed into the KDF WITHOUT the
+// combiner itself binding the ciphertexts/public keys. In real TLS 1.3 that
+// binding is provided one layer up: the hybrid secret enters the key schedule
+// together with the handshake transcript hash (ClientHello…ServerFinished), so
+// the ML-KEM ciphertext and both public keys are already authenticated by the
+// transport before any record key exists.
+//
+// This demo has no surrounding TLS transcript, so the combiner below is UNBOUND
+// on its own. Do NOT lift this function into another protocol as-is: if your
+// construction lacks an outer transcript, add the KEM ciphertext and both peers'
+// public keys to the HKDF `info` (or a preceding transcript hash) so the derived
+// key commits to the exact handshake it came from. Concatenation alone gives you
+// the "safe if either wire holds" property; it does NOT give you channel binding.
 export async function combineSecrets(
   x25519Secret: Uint8Array,
   mlkemSecret: Uint8Array,
