@@ -196,18 +196,22 @@ function renderHero(): string {
   const theme = getThemeMode();
   const toggle = themeButtonState(theme);
 
+  // The shared top bar owns the visible theme toggle; this button stays in the
+  // DOM (hidden by the shared-header CSS) so the demo's own theme JS keeps
+  // working. It lives outside the hero landmark so the header structure matches
+  // the fleet standard exactly.
   return [
-    '<header class="hero">',
     '<button id="theme-toggle" class="theme-toggle" type="button" aria-label="' + toggle.label + '">' + toggle.icon + '</button>',
-    '<h1>X25519 + ML-KEM-768</h1>',
-    '<p><strong>Hybrid post-quantum key exchange</strong> for the crypto-compare portfolio.</p>',
-    '<p>This demo bridges ratchet-wire and kyber-vault by showing how classical and post-quantum secrets combine into the handshake protecting real traffic today.</p>',
-    '<div class="hero-badges">',
-    '<span class="badge badge-good">Safe if either wire holds</span>',
-    '<span class="badge badge-info">HKDF-SHA-256 combiner</span>',
-    '<span class="badge badge-info">AES-256-GCM secure chat</span>',
-    '<span class="badge badge-info">No runtime CDN dependencies</span>',
+    '<header class="cl-hero">',
+    '<div class="cl-hero-main">',
+    '<h1 class="cl-hero-title">Hybrid Wire</h1>',
+    '<p class="cl-hero-sub">X25519 + ML-KEM-768 · HKDF combiner</p>',
+    '<p class="cl-hero-desc">Step through a live hybrid handshake that runs a classical X25519 exchange alongside an ML-KEM-768 encapsulation, then mixes both secrets through HKDF into one AES-256-GCM session key.</p>',
     '</div>',
+    '<aside class="cl-hero-why" aria-label="Why it matters">',
+    '<span class="cl-hero-why-label">WHY IT MATTERS</span>',
+    '<p class="cl-hero-why-text">A recorded handshake can be broken years later once quantum computers arrive. Binding a classical and a post-quantum secret together means an attacker must defeat both wires at once, so today’s traffic stays confidential well into the future.</p>',
+    '</aside>',
     '</header>',
   ].join('');
 }
