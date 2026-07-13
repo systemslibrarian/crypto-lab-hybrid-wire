@@ -28,6 +28,13 @@ export function toHex(bytes: Uint8Array): string {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
+// Space-separated hex, e.g. "ff a2 3c". Used where individual bytes should read
+// as discrete values (the "known to attacker" secret reveal), not one blob.
+export function toHexSpaced(bytes: Uint8Array, take?: number): string {
+  const slice = typeof take === 'number' ? bytes.slice(0, take) : bytes;
+  return Array.from(slice, (byte) => byte.toString(16).padStart(2, '0')).join(' ');
+}
+
 export function shortHex(bytes?: Uint8Array, take = 12): string {
   if (!bytes || bytes.length === 0) {
     return '—';

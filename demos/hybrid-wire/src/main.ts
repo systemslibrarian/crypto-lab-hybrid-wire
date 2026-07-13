@@ -5,7 +5,7 @@ import { combineSecrets, generateHybridKeyPair, hybridDecapsulate, type HybridKe
 import { mlkemDecapsulate, mlkemEncapsulate } from './crypto/mlkem768';
 import { evaluateResilience } from './crypto/security';
 import { decryptMessage, encryptMessage, type EncryptedMessage, type HybridSession } from './crypto/session';
-import { bytesEqual, fingerprint, formatMs, nowMs, shortHex, toHex } from './crypto/utils';
+import { bytesEqual, fingerprint, formatMs, nowMs, shortHex, toHex, toHexSpaced } from './crypto/utils';
 import { generateX25519KeyPair, x25519SharedSecret, type X25519KeyPair } from './crypto/x25519';
 
 type TabId = 'handshake' | 'wires' | 'threat' | 'deployed' | 'why';
@@ -275,13 +275,111 @@ function renderWireSvg(options: {
   ].join('');
 }
 
+// Wire coordinates (kept in sync with renderWireSvg's paths). Bob sits at x=72,
+// Alice at x=748. Blue wire runs along y≈37 (control-curve apex), purple along
+// y≈133. We animate a single labelled token along the wire that is *active this
+// step*, in the correct direction, so the motion teaches the mechanism instead of
+// decorating. Once the key is derived (step 6) the pulse stops entirely.
+const WIRE = {
+  bobX: 72,
+  aliceX: 748,
+  blueY: 34,
+  purpleY: 140,
+};
+
+// Build an SVG token (rounded rect + label) that slides between two x positions.
+// direction 'toAlice' moves left→right (Bob→Alice); 'toBob' moves right→left.
+function wireToken(opts: {
+  label: string;
+  y: number;
+  colorClass: string;
+  direction: 'toAlice' | 'toBob';
+}): string {
+  const fromX = opts.direction === 'toAlice' ? WIRE.bobX : WIRE.aliceX;
+  const toX = opts.direction === 'toAlice' ? WIRE.aliceX : WIRE.bobX;
+  const width = 132;
+  // Honour prefers-reduced-motion: freeze the token at the wire's midpoint (still
+  // shows WHICH secret is on WHICH wire, just without SMIL motion).
+  const reduceMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const staticX = (fromX + toX) / 2;
+  const motion = reduceMotion
+    ? '<g transform="translate(' + staticX + ' 0)">'
+    : [
+        '<g>',
+        '<animateTransform attributeName="transform" attributeType="XML" type="translate" ' +
+          'from="' + fromX + ' 0" to="' + toX + ' 0" dur="2.2s" repeatCount="indefinite" />',
+      ].join('');
+  // y is the wire's height; we lift the chip above the line.
+  return [
+    '<g class="wire-token ' + opts.colorClass + '" aria-hidden="true">',
+    motion,
+    '<rect x="' + (-width / 2) + '" y="' + (opts.y - 14) + '" rx="8" ry="8" width="' + width + '" height="20"></rect>',
+    '<text x="0" y="' + opts.y + '" text-anchor="middle" font-size="11">' + opts.label + '</text>',
+    '</g>',
+    '</g>',
+  ].join('');
+}
+
+// Two tokens converging into a central HKDF box (step 6 reveal moment). Static —
+// the pulse has stopped; this is the "both secrets slide into the combiner" beat.
+function combinerTokens(): string {
+  const midX = 410;
+  return [
+    '<g class="hkdf-box" aria-hidden="true">',
+    '<rect x="' + (midX - 46) + '" y="76" rx="9" ry="9" width="92" height="30"></rect>',
+    '<text x="' + midX + '" y="95" text-anchor="middle" font-size="13">HKDF</text>',
+    '</g>',
+    '<g class="wire-token blue settled" aria-hidden="true"><rect x="' + (midX - 149) + '" y="58" rx="7" width="118" height="18"></rect><text x="' + (midX - 90) + '" y="71" text-anchor="middle" font-size="10">X25519 secret</text></g>',
+    '<g class="wire-token purple settled" aria-hidden="true"><rect x="' + (midX + 31) + '" y="106" rx="7" width="118" height="18"></rect><text x="' + (midX + 90) + '" y="119" text-anchor="middle" font-size="10">PQ secret</text></g>',
+    '<path class="hkdf-feed" d="M ' + (midX - 31) + ' 67 L ' + (midX - 12) + ' 82" aria-hidden="true"></path>',
+    '<path class="hkdf-feed" d="M ' + (midX + 31) + ' 115 L ' + (midX + 12) + ' 100" aria-hidden="true"></path>',
+  ].join('');
+}
+
+// Choose which token(s) animate for the current step, and describe it for AT.
 function renderWireDiagram(): string {
-  const animateClass = state.currentStep >= 3 ? ' wire-flow' : '';
-  return renderWireSvg({
-    ariaLabel: 'Hybrid wire animation showing X25519 blue wire and ML-KEM purple wire between Bob and Alice',
-    blueClass: 'wire-path wire-blue' + animateClass,
-    purpleClass: 'wire-path wire-purple' + animateClass,
-  });
+  const step = state.currentStep;
+  let overlay = '';
+  let motionNote = '';
+  // Only the wire in play this step pulses; the other rests.
+  let bluePulse = false;
+  let purplePulse = false;
+
+  if (step === 3) {
+    // Alice encapsulates → ML-KEM ciphertext travels back to Bob (purple, toBob).
+    overlay = wireToken({ label: 'ML-KEM ciphertext →', y: WIRE.purpleY, colorClass: 'purple', direction: 'toBob' });
+    purplePulse = true;
+    motionNote = 'A labelled ML-KEM ciphertext token travels along the purple wire from Alice toward Bob.';
+  } else if (step === 4) {
+    // Both sides derive the X25519 secret (blue wire lights up, token toAlice).
+    overlay = wireToken({ label: 'X25519 secret', y: WIRE.blueY, colorClass: 'blue', direction: 'toAlice' });
+    bluePulse = true;
+    motionNote = 'A labelled X25519 secret token moves along the blue wire between Bob and Alice.';
+  } else if (step === 5) {
+    // Bob decapsulates → recovers the PQ secret (purple wire, settling at Bob).
+    overlay = wireToken({ label: 'PQ secret recovered', y: WIRE.purpleY, colorClass: 'purple', direction: 'toAlice' });
+    purplePulse = true;
+    motionNote = 'A labelled PQ secret token moves along the purple wire as Bob decapsulates it.';
+  } else if (step >= 6) {
+    // Key derived: pulse stops, both tokens slide into the HKDF box.
+    overlay = combinerTokens();
+    motionNote = 'The X25519 secret and the PQ secret both feed into the central HKDF box; the wires are no longer pulsing because the session key is derived.';
+  } else {
+    motionNote = 'The two wires are idle; advance the handshake to see each secret move.';
+  }
+
+  const blueClass = 'wire-path wire-blue' + (bluePulse ? ' wire-flow' : '');
+  const purpleClass = 'wire-path wire-purple' + (purplePulse ? ' wire-flow' : '');
+
+  return [
+    renderWireSvg({
+      ariaLabel: 'Hybrid wire diagram: X25519 blue wire and ML-KEM purple wire between Bob and Alice. ' + motionNote,
+      blueClass,
+      purpleClass,
+      overlay,
+    }),
+    '<p class="wire-motion-note">' + escapeHtml(motionNote) + '</p>',
+  ].join('');
 }
 
 function renderMatchCard(): string {
@@ -410,29 +508,107 @@ function renderHandshakeTab(): string {
     '<button class="action-button" id="next-step" ' + (state.currentStep === 6 ? 'disabled' : '') + '>Next</button>',
     '<button class="action-button" id="reset-handshake">Reset</button>',
     '</div>',
+    renderWireDiagram(),
+    renderLiveWireCards(),
+    // Progressive disclosure: the outcome metrics, the combiner, and the secure
+    // chat are the *result* of a completed handshake, so they stay hidden until
+    // step 6 keeps attention on one idea at a time during steps 1-5.
+    renderHandshakeOutcome(),
+    '</section>',
+  ].join('');
+}
+
+// Per-wire key-detail cards. Each card is hidden until it carries its first live
+// value, so during steps 1-2 the wire diagram is the focus. The blue card mounts
+// at step 2 (Alice's ephemeral key exists); the purple card at step 3 (Alice has
+// encapsulated a ciphertext). Bob's public keys, though known from step 1, ride
+// along inside the card once it appears rather than showing a lone card early.
+function renderLiveWireCards(): string {
+  if (!state.timeline) {
+    return '';
+  }
+  const step = state.currentStep;
+  const showBlue = step >= 2;
+  const showPurple = step >= 3;
+  if (!showBlue && !showPurple) {
+    return '<p class="live-hint">Advance the handshake — the per-wire byte details appear here as each wire produces its first value.</p>';
+  }
+
+  const blueCard = showBlue
+    ? [
+        '<div class="wire-card blue"><h3>Blue wire — X25519</h3><div class="key-list">',
+        '<div><span class="label">Bob public key</span><span class="value">' + shortHex(state.timeline.bobKeys.x25519.publicKeyRaw, 16) + '</span></div>',
+        '<div><span class="label">Alice ephemeral public key</span><span class="value">' + shortHex(state.timeline.aliceKeyPair.publicKeyRaw, 16) + '</span></div>',
+        '<div><span class="label">Alice shared secret</span><span class="value">' + (step >= 4 ? shortHex(state.timeline.aliceX25519Secret, 16) : 'pending') + '</span></div>',
+        '<div><span class="label">Bob shared secret</span><span class="value">' + (step >= 4 ? shortHex(state.timeline.bobX25519Secret, 16) : 'pending') + '</span></div>',
+        '</div></div>',
+      ].join('')
+    : '';
+
+  const purpleCard = showPurple
+    ? [
+        '<div class="wire-card purple"><h3>Purple wire — ML-KEM-768</h3><div class="key-list">',
+        '<div><span class="label">Bob ML-KEM public key</span><span class="value">' + shortHex(state.timeline.bobKeys.mlkem.publicKey, 16) + '</span></div>',
+        '<div><span class="label">Ciphertext from Alice</span><span class="value">' + shortHex(state.timeline.mlkemCiphertext, 16) + '</span></div>',
+        '<div><span class="label">Alice shared secret</span><span class="value">' + shortHex(state.timeline.aliceMlkemSecret, 16) + '</span></div>',
+        '<div><span class="label">Bob shared secret</span><span class="value">' + (step >= 5 ? shortHex(state.timeline.bobMlkemSecret, 16) : 'pending') + '</span></div>',
+        '</div></div>',
+      ].join('')
+    : '';
+
+  return '<div class="live-grid">' + blueCard + purpleCard + '</div>';
+}
+
+// The step-6 payoff: outcome metrics, the HKDF combiner/match card, an explicit
+// "now try encrypting a message" prompt, and the secure chat. All gated to step 6
+// so the six-step narrative isn't competing with a wall of outcome cards.
+function renderHandshakeOutcome(): string {
+  if (!state.timeline || state.currentStep < 6) {
+    return '<p class="live-hint step-hint">You are on step ' + state.currentStep + ' of 6. The combined session key, its metrics, and the secure chat unlock at step 6.</p>';
+  }
+
+  const metrics = [
     '<div class="metrics-row">',
     '<div class="metric-card"><div class="label">Total measured handshake time</div><div class="big-number">' + formatMs(state.timeline.totalTimeMs) + '</div></div>',
     '<div class="metric-card"><div class="label">Handshake overhead</div><div class="big-number">+2,272 bytes</div></div>',
     '<div class="metric-card"><div class="label">Session key length</div><div class="big-number">32 bytes</div></div>',
     '</div>',
-    renderWireDiagram(),
-    '<div class="live-grid">',
-    '<div class="wire-card blue"><h3>Blue wire — X25519</h3><div class="key-list">',
-    '<div><span class="label">Bob public key</span><span class="value">' + shortHex(state.timeline.bobKeys.x25519.publicKeyRaw, 16) + '</span></div>',
-    '<div><span class="label">Alice ephemeral public key</span><span class="value">' + (state.currentStep >= 2 ? shortHex(state.timeline.aliceKeyPair.publicKeyRaw, 16) : 'pending') + '</span></div>',
-    '<div><span class="label">Alice shared secret</span><span class="value">' + (state.currentStep >= 4 ? shortHex(state.timeline.aliceX25519Secret, 16) : 'pending') + '</span></div>',
-    '<div><span class="label">Bob shared secret</span><span class="value">' + (state.currentStep >= 4 ? shortHex(state.timeline.bobX25519Secret, 16) : 'pending') + '</span></div>',
-    '</div></div>',
-    '<div class="wire-card purple"><h3>Purple wire — ML-KEM-768</h3><div class="key-list">',
-    '<div><span class="label">Bob ML-KEM public key</span><span class="value">' + shortHex(state.timeline.bobKeys.mlkem.publicKey, 16) + '</span></div>',
-    '<div><span class="label">Ciphertext from Alice</span><span class="value">' + (state.currentStep >= 3 ? shortHex(state.timeline.mlkemCiphertext, 16) : 'pending') + '</span></div>',
-    '<div><span class="label">Alice shared secret</span><span class="value">' + (state.currentStep >= 3 ? shortHex(state.timeline.aliceMlkemSecret, 16) : 'pending') + '</span></div>',
-    '<div><span class="label">Bob shared secret</span><span class="value">' + (state.currentStep >= 5 ? shortHex(state.timeline.bobMlkemSecret, 16) : 'pending') + '</span></div>',
-    '</div></div>',
+  ].join('');
+
+  const prompt = '<div class="try-prompt" role="note"><span class="try-prompt-icon" aria-hidden="true">✓</span><div><strong>Handshake complete.</strong> Both wires produced the same session key. Now try encrypting a message below — then use <em>Tamper with session</em> to watch AES-256-GCM reject a flipped ML-KEM ciphertext byte.</div></div>';
+
+  return metrics + prompt + renderMatchCard() + renderChatSection();
+}
+
+// Newcomer on-ramp for the encapsulate/decapsulate vocabulary the handshake
+// steps assume from step 3 onward. Collapsible so a cryptographer can skip it.
+// Contrasts the *symmetric* DH operation (both sides do the same thing) with the
+// *asymmetric* KEM flow (one side encapsulates → sends a ciphertext → the other
+// decapsulates), which is exactly why the purple wire sends a packet back and the
+// blue wire does not.
+function renderKemAside(): string {
+  return [
+    '<details class="kem-aside">',
+    '<summary><span class="kem-aside-badge">New to PQ crypto?</span> What is a KEM, and why does it differ from Diffie-Hellman?</summary>',
+    '<div class="kem-aside-body">',
+    '<p>Both wires end with the <strong>same result</strong> — a shared 32-byte secret — but they get there by opposite mechanisms. That is why one wire sends a packet back and the other does not.</p>',
+    '<div class="kem-compare">',
+    '<div class="kem-compare-col blue">',
+    '<h4>X25519 — a Diffie-Hellman exchange</h4>',
+    '<p class="kem-compare-tag">Symmetric: both sides do the identical operation.</p>',
+    '<pre class="kem-mini" tabindex="0" role="region" aria-label="X25519 Diffie-Hellman flow">Alice pub ───────▶ Bob\nBob   pub ◀─────── Alice\n(each combines their own\n private key with the\n other\'s public key)\n   ↓            ↓\n same secret  same secret</pre>',
+    '<p>Nobody "sends the secret." Each side <em>derives</em> it locally by mixing keys. There is no ciphertext.</p>',
     '</div>',
-    renderMatchCard(),
-    renderChatSection(),
-    '</section>',
+    '<div class="kem-compare-col purple">',
+    '<h4>ML-KEM — a Key Encapsulation Mechanism</h4>',
+    '<p class="kem-compare-tag">Asymmetric: the two sides do different operations.</p>',
+    '<pre class="kem-mini" tabindex="0" role="region" aria-label="ML-KEM encapsulate decapsulate flow">Bob pub ─────────▶ Alice\n           Alice ENCAPSULATES:\n           makes a fresh secret +\n           a ciphertext holding it\nAlice ◀── ciphertext ── Bob\nBob DECAPSULATES with his\nprivate key → same secret</pre>',
+    '<p><strong>Encapsulate</strong> = generate a secret and lock it into a ciphertext using Bob\'s public key. <strong>Decapsulate</strong> = Bob unlocks that ciphertext with his private key to recover the identical secret. The ciphertext is the packet that travels back up the purple wire.</p>',
+    '</div>',
+    '</div>',
+    '<p class="footer-note">Takeaway: DH mixes public keys in place; a KEM ships a ciphertext that carries a secret. Both give the two wires an <em>independent</em> shared secret, which is what lets HKDF combine them into one resilient key.</p>',
+    '</div>',
+    '</details>',
   ].join('');
 }
 
@@ -452,6 +628,7 @@ function renderWiresTab(): string {
   return [
     '<section class="panel">',
     '<h2>Two wires</h2>',
+    renderKemAside(),
     '<div class="cards-grid">',
     '<div class="wire-card blue"><h3>X25519 wire</h3><p>Curve25519 ECDH keeps forward secrecy fast and compact.</p><ul><li>Public key: 32 bytes</li><li>Shared secret: 32 bytes</li><li>Strength: mature classical elliptic-curve exchange</li></ul></div>',
     '<div class="wire-card purple"><h3>ML-KEM-768 wire</h3><p>NIST FIPS 203 key encapsulation adds post-quantum protection.</p><ul><li>Public key: 1,184 bytes</li><li>Ciphertext: 1,088 bytes</li><li>Shared secret: 32 bytes</li></ul></div>',
@@ -492,12 +669,68 @@ function renderResilienceExplorer(): string {
     '<div class="resilience-card">',
     '<h3>Prove it yourself: break a wire</h3>',
     '<p>Toggle a wire to "broken" and watch the verdict. The session only fails when <strong>both</strong> wires fall — break either one alone and the other still carries the key.</p>',
+    '<p class="resilience-def"><span class="resilience-def-badge">What "broken" means</span> Assume the attacker has recovered <strong>this wire\'s 32-byte secret</strong> — not that the bytes stopped flowing. A broken wire\'s secret is revealed below as <em>known to attacker</em>; the surviving wire stays masked, so you can see HKDF\'s input is still half-unknown.</p>',
     '<div class="resilience-controls">' + x25519Toggle + mlkemToggle + '</div>',
     renderResilienceWires(),
+    renderResilienceSecrets(),
     '<div class="resilience-verdict ' + verdict.level + '" role="status" aria-live="polite">',
     '<div class="resilience-verdict-head"><span class="resilience-verdict-icon" aria-hidden="true">' + verdictIcon + '</span><strong>' + verdict.headline + '</strong></div>',
     '<p>' + verdict.detail + '</p>',
     '</div>',
+    '</div>',
+  ].join('');
+}
+
+// Show the two HKDF inputs side by side. A wire toggled "broken" reveals its
+// real 32-byte secret (labelled "known to attacker"); the surviving wire's bytes
+// stay masked. This makes the central claim literal: with one wire broken the
+// attacker still holds only half of the concatenated HKDF input.
+//
+// The bytes shown are the SAME live secrets the handshake derived — no fabricated
+// values. Before the handshake finishes we fall back to a masked placeholder so
+// the explorer is honest on the Threat tab even standalone.
+function renderResilienceSecrets(): string {
+  const maskHex = '•• •• •• •• •• •• •• •• … (32 bytes, unknown to attacker)';
+
+  function secretCell(opts: {
+    wireClass: 'blue' | 'purple';
+    title: string;
+    broken: boolean;
+    secret?: Uint8Array;
+  }): string {
+    const revealed = opts.broken;
+    const bytesLabel = revealed
+      ? (opts.secret ? escapeHtml(toHexSpaced(opts.secret, 16)) + '…' : 'ff a2 3c … (example — run the handshake for live bytes)')
+      : maskHex;
+    const statusText = revealed ? 'known to attacker' : 'still unknown to attacker';
+    const statusClass = revealed ? 'exposed' : 'masked';
+    // Icon + text + colour (not colour alone) carries the state for a11y.
+    const statusIcon = revealed ? '🔓' : '🔒';
+    return [
+      '<div class="secret-cell ' + opts.wireClass + ' ' + statusClass + '">',
+      '<div class="secret-cell-head">',
+      '<span class="secret-cell-title">' + opts.title + '</span>',
+      '<span class="secret-status ' + statusClass + '"><span aria-hidden="true">' + statusIcon + '</span> ' + statusText + '</span>',
+      '</div>',
+      '<code class="secret-bytes">' + bytesLabel + '</code>',
+      '</div>',
+    ].join('');
+  }
+
+  const x25519Secret = state.timeline?.aliceX25519Secret;
+  const mlkemSecret = state.timeline?.aliceMlkemSecret;
+  const bothMasked = !state.breakX25519 && !state.breakMlkem;
+
+  return [
+    '<div class="secret-reveal" role="group" aria-label="HKDF input secrets and what the attacker knows">',
+    secretCell({ wireClass: 'blue', title: 'X25519 secret (HKDF input A)', broken: state.breakX25519, secret: x25519Secret }),
+    '<div class="secret-join" aria-hidden="true">‖</div>',
+    secretCell({ wireClass: 'purple', title: 'ML-KEM secret (HKDF input B)', broken: state.breakMlkem, secret: mlkemSecret }),
+    '<p class="secret-reveal-note">' + (bothMasked
+      ? 'Both inputs are masked: the attacker knows neither half, so HKDF(A ‖ B) is fully out of reach.'
+      : (state.breakX25519 && state.breakMlkem)
+        ? 'Both inputs are exposed: only now can the attacker rebuild A ‖ B and re-derive the session key.'
+        : 'One input is exposed, one is masked: the attacker holds half of A ‖ B and still cannot re-derive the HKDF output.') + '</p>',
     '</div>',
   ].join('');
 }
@@ -564,6 +797,31 @@ function renderDeployedTab(): string {
   ].join('');
 }
 
+// Names and refutes the natural wrong guess: hybrid does NOT double the security
+// bits. It is two locks in series (an attacker must break BOTH) — a hedge against
+// either primitive failing, not a multiplier of strength. Reuses the broken-wire
+// ✕ marks from the resilience explorer so the visual vocabulary is consistent.
+function renderTwiceAsStrong(): string {
+  return [
+    '<div class="misconception-card">',
+    '<h3><span class="misconception-flag" aria-hidden="true">✕</span> "Twice as strong?" — No.</h3>',
+    '<p>A first guess is that adding a second wire <em>doubles</em> the security (e.g. 128 + 128 = 256 bits). That is the wrong model. Hybrid is a <strong>hedge, not a multiplier</strong>: the two secrets sit in series, so an attacker must break <strong>both</strong> to win — and the combined strength is bounded by whichever wire is <em>stronger</em>, not their sum.</p>',
+    '<div class="misconception-compare">',
+    '<div class="misconception-col right">',
+    '<h4><span aria-hidden="true">🔒</span> Right: two locks in series</h4>',
+    '<div class="lock-row" aria-hidden="true"><span class="lock-chip blue">X25519</span><span class="lock-and">AND</span><span class="lock-chip purple">ML-KEM</span></div>',
+    '<p>Break one wire (<span class="inline-break" aria-hidden="true">✕</span>) and the survivor still holds the key. The attacker must break <strong>both at once</strong>. Safety = "either one holding is enough."</p>',
+    '</div>',
+    '<div class="misconception-col wrong">',
+    '<h4><span aria-hidden="true">⚠️</span> Wrong: two locks = double the bits</h4>',
+    '<div class="lock-row" aria-hidden="true"><span class="lock-chip blue">128b</span><span class="lock-and">+</span><span class="lock-chip purple">128b</span><span class="lock-and">=</span><span class="lock-chip ghost">256b?</span></div>',
+    '<p>Strengths do not add. If both wires were somehow broken by the same advance, the "sum" is zero — which is exactly why we combine <em>independent</em> primitives instead.</p>',
+    '</div>',
+    '</div>',
+    '</div>',
+  ].join('');
+}
+
 function renderWhyTab(): string {
   return [
     '<section class="panel">',
@@ -573,6 +831,7 @@ function renderWhyTab(): string {
     '<div class="connection-card"><h3>ML-KEM alone</h3><p>Post-quantum protection is strong, but deployments often prefer a transitional path that still includes a mature classical primitive.</p></div>',
     '<div class="connection-card"><h3>Hybrid together</h3><p>NIST SP 800-56C encourages robust combiners. HKDF lets both secrets contribute so the session survives if either primitive remains secure.</p></div>',
     '</div>',
+    renderTwiceAsStrong(),
     '<h3>Portfolio connection</h3>',
     '<div class="cards-grid">',
     '<div class="connection-card"><strong>ratchet-wire → hybrid-wire</strong><p>The post-quantum upgrade path for X25519 session setup, similar to Signal PQXDH.</p></div>',

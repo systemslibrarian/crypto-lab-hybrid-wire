@@ -22,6 +22,14 @@ Live GitHub Pages demo: https://systemslibrarian.github.io/crypto-lab-hybrid-wir
 
 You can walk through each handshake phase, watch both shared secrets concatenate into the HKDF combiner, and run encrypted chat with tamper detection after key derivation. The threat-model tab is interactive: switch either wire to "broken" and confirm the session survives any single break and only fails when both wires fall together. The interface includes tab controls for handshake flow, wire details, the resilience explorer, current deployments, and rationale. A benchmark control runs 50 iterations to compare X25519, ML-KEM-768, and hybrid execution rates.
 
+The exhibit is layered for both newcomers and cryptographers:
+
+1. **Live handshake** — a six-step stepper with a wire diagram whose animation carries meaning: a labelled token rides the blue wire when the X25519 secret is derived, and the purple wire when the ML-KEM ciphertext travels back and the PQ secret is recovered; at step 6 both tokens slide into an HKDF box and the pulse stops. The per-wire byte details, outcome metrics, combiner, and secure chat are revealed progressively so the six-step narrative isn't drowned by a wall of cards.
+2. **Two wires** — sizes and the HKDF combiner formula, fronted by a collapsible **"What is a KEM?"** aside that contrasts X25519 (a symmetric Diffie-Hellman exchange, both sides do the same operation) with ML-KEM (an asymmetric encapsulate → ciphertext → decapsulate flow), which is why the purple wire sends a packet back and the blue wire does not.
+3. **Threat model** — the "prove it yourself" resilience explorer. Toggles define **"broken"** explicitly ("assume the attacker has recovered *this* wire's 32-byte secret") and, when a wire is broken, reveal its live secret bytes as *known to attacker* while the surviving wire's bytes stay masked — so a learner literally sees that HKDF's input is still half-unknown after a single break.
+4. **Deployed today** — real-world hybrid rollouts (Chrome, Cloudflare, Signal PQXDH, AWS s2n-tls, iCloud PQ3, OpenSSH).
+5. **Why hybrid** — the rationale, portfolio connections, and a **"Twice as strong? No"** callout that names and refutes the natural wrong guess (hybrid is a hedge in series — break both to win — not a doubling of security bits).
+
 The hybrid security claim is encoded as a pure, unit-tested function (`src/crypto/security.ts`) so the interactive explorer and the test suite evaluate exactly the same logic.
 
 ## 4. How to Run Locally

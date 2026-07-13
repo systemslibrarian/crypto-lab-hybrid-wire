@@ -924,6 +924,421 @@ pre {
   min-width: 44px;
 }
 
+/* ---- Teaching additions: 'broken' definition + live secret reveal ---- */
+.resilience-def {
+  margin: 0.2rem 0 0.7rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: 12px;
+  background-color: var(--surface-sunken);
+  border: 1px solid var(--border-soft);
+  color: var(--text);
+  font-size: 0.92rem;
+}
+
+.resilience-def-badge {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text);
+  background-color: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+  margin-right: 0.4rem;
+}
+
+.secret-reveal {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: stretch;
+  gap: 0.6rem;
+  margin: 0.8rem 0;
+}
+
+.secret-reveal-note {
+  grid-column: 1 / -1;
+  margin: 0.1rem 0 0;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.secret-cell {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background-color: var(--surface-sunken);
+}
+
+.secret-cell.blue {
+  border-color: rgba(59, 130, 246, 0.45);
+}
+
+.secret-cell.purple {
+  border-color: rgba(168, 85, 247, 0.45);
+}
+
+.secret-cell.exposed {
+  border-color: var(--bad-border);
+  background-color: var(--bad-surface);
+}
+
+.secret-cell-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.secret-cell-title {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.secret-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  padding: 0.12rem 0.5rem;
+  border: 1px solid var(--border);
+}
+
+.secret-status.masked {
+  color: var(--pill-pending-text);
+  background-color: var(--pill-pending-bg);
+  border-color: rgba(59, 130, 246, 0.35);
+}
+
+.secret-status.exposed {
+  color: var(--pill-tamper-text);
+  background-color: var(--pill-tamper-bg);
+  border-color: var(--bad-border);
+}
+
+.secret-bytes {
+  display: block;
+  word-break: break-all;
+  font-size: 0.82rem;
+  color: var(--text);
+}
+
+.secret-join {
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+/* ---- 'What is a KEM?' collapsible aside ---- */
+.kem-aside {
+  margin: 0 0 0.9rem;
+  border: 1px solid var(--accent-purple);
+  border-radius: 14px;
+  background-color: var(--surface-sunken);
+  overflow: hidden;
+}
+
+.kem-aside > summary {
+  cursor: pointer;
+  padding: 0.75rem 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+  list-style: none;
+}
+
+.kem-aside > summary::-webkit-details-marker {
+  display: none;
+}
+
+.kem-aside > summary::before {
+  content: '▸';
+  display: inline-block;
+  margin-right: 0.5rem;
+  color: var(--accent-purple);
+  transition: transform 0.15s ease;
+}
+
+.kem-aside[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.kem-aside > summary:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
+}
+
+.kem-aside-badge {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text);
+  background-color: var(--surface-raised);
+  border: 1px solid var(--accent-purple);
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+  margin-right: 0.4rem;
+}
+
+.kem-aside-body {
+  padding: 0 0.9rem 0.9rem;
+  color: var(--text);
+}
+
+.kem-compare {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0.8rem;
+  margin: 0.6rem 0;
+}
+
+.kem-compare-col {
+  padding: 0.7rem 0.8rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background-color: var(--surface-raised);
+}
+
+.kem-compare-col.blue {
+  border-color: rgba(59, 130, 246, 0.45);
+}
+
+.kem-compare-col.purple {
+  border-color: rgba(168, 85, 247, 0.45);
+}
+
+.kem-compare-col h4 {
+  margin: 0 0 0.3rem;
+  color: var(--text);
+}
+
+.kem-compare-tag {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+.kem-mini {
+  margin: 0 0 0.5rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 10px;
+  background-color: var(--surface-sunken);
+  border: 1px solid var(--border-soft);
+  color: var(--text);
+  font-family: 'SFMono-Regular', 'Consolas', monospace;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+/* ---- Meaningful wire tokens + HKDF box ---- */
+.wire-token rect {
+  fill: var(--surface-raised);
+  stroke-width: 1.5;
+}
+
+.wire-token text {
+  fill: var(--text);
+  font-family: 'SFMono-Regular', 'Consolas', monospace;
+  font-weight: 600;
+}
+
+.wire-token.blue rect {
+  stroke: var(--accent-blue);
+}
+
+.wire-token.purple rect {
+  stroke: var(--accent-purple);
+}
+
+.hkdf-box rect {
+  fill: var(--good-surface);
+  stroke: var(--good-border);
+  stroke-width: 1.5;
+}
+
+.hkdf-box text {
+  fill: var(--text);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.hkdf-feed {
+  fill: none;
+  stroke: var(--text-dim);
+  stroke-width: 2;
+  stroke-dasharray: 3 4;
+}
+
+.wire-motion-note {
+  margin: 0.1rem 0 0.4rem;
+  font-size: 0.9rem;
+  color: var(--text-soft);
+}
+
+.live-hint {
+  margin: 0.6rem 0;
+  padding: 0.7rem 0.85rem;
+  border-radius: 12px;
+  background-color: var(--surface-sunken);
+  border: 1px dashed var(--border);
+  color: var(--text-soft);
+  font-size: 0.92rem;
+}
+
+.step-hint {
+  border-style: solid;
+  border-color: var(--accent-blue);
+}
+
+/* ---- Step-6 'now try encrypting' prompt ---- */
+.try-prompt {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin: 0.9rem 0;
+  padding: 0.8rem 1rem;
+  border-radius: 14px;
+  border: 1px solid var(--good-border);
+  background-color: var(--good-surface);
+  color: var(--text);
+}
+
+.try-prompt-icon {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  background-color: var(--good-border);
+  color: var(--text);
+  font-weight: 700;
+}
+
+/* ---- 'Twice as strong? No' misconception callout ---- */
+.misconception-card {
+  margin: 1rem 0;
+  padding: 1rem;
+  border-radius: 16px;
+  border: 1px solid var(--warn-border);
+  background-color: var(--surface);
+}
+
+.misconception-card h3 {
+  margin-top: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.misconception-flag {
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 8px;
+  background-color: var(--bad-surface);
+  color: var(--diagram-break);
+  border: 1px solid var(--bad-border);
+  font-weight: 700;
+}
+
+.misconception-compare {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0.8rem;
+  margin-top: 0.6rem;
+}
+
+.misconception-col {
+  padding: 0.8rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background-color: var(--surface-raised);
+}
+
+.misconception-col.right {
+  border-color: var(--good-border);
+}
+
+.misconception-col.wrong {
+  border-color: var(--warn-border);
+}
+
+.misconception-col h4 {
+  margin: 0 0 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text);
+}
+
+.lock-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.lock-chip {
+  border-radius: 999px;
+  padding: 0.2rem 0.65rem;
+  font-weight: 700;
+  font-size: 0.85rem;
+  border: 1px solid var(--border);
+  background-color: var(--surface-sunken);
+  color: var(--text);
+}
+
+.lock-chip.blue {
+  border-color: rgba(59, 130, 246, 0.55);
+}
+
+.lock-chip.purple {
+  border-color: rgba(168, 85, 247, 0.55);
+}
+
+.lock-chip.ghost {
+  opacity: 0.6;
+  border-style: dashed;
+}
+
+.lock-and {
+  font-weight: 700;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+.inline-break {
+  color: var(--diagram-break);
+  font-weight: 700;
+}
+
+@media (max-width: 760px) {
+  .secret-reveal {
+    grid-template-columns: 1fr;
+  }
+
+  .secret-join {
+    padding: 0.2rem 0;
+  }
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .wire-flow {
