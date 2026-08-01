@@ -238,7 +238,7 @@ function renderStepList(): string {
           '<div class="' + stepClass + '" role="listitem"' + ariaCurrent + ' aria-label="Step ' + stepNumber + ': ' + title + ' (' + statusLabel + ')">',
           '<div class="step-number" aria-hidden="true">' + stepNumber + '</div>',
           '<div><div class="step-title">' + title + '</div><div class="step-detail">' + stepDetails[index] + '</div></div>',
-          '<div class="step-time" aria-label="Duration: ' + timeLabel + '">' + timeLabel + '</div>',
+          '<div class="step-time"><span class="sr-only">Duration: </span>' + timeLabel + '</div>',
           '</div>',
         ].join('');
       })
@@ -456,7 +456,7 @@ function renderChatSection(): string {
             '<p><strong>Message number:</strong> ' + message.encrypted.messageNumber + '</p>',
             message.decryptedPlaintext ? '<p><strong>Recipient view:</strong> ' + escapeHtml(message.decryptedPlaintext) + '</p>' : '',
             message.recipientNote ? '<p><strong>Verification note:</strong> ' + escapeHtml(message.recipientNote) + '</p>' : '',
-            '<div class="message-status"><button class="action-button decrypt-button" data-index="' + index + '">Decrypt</button></div>',
+            '<div class="message-status"><button class="action-button decrypt-button" data-index="' + index + '" aria-label="Decrypt message ' + message.encrypted.messageNumber + ' from ' + message.sender + '">Decrypt</button></div>',
             '</article>',
           ].join('');
         })
@@ -594,13 +594,13 @@ function renderKemAside(): string {
     '<p>Both wires end with the <strong>same result</strong> — a shared 32-byte secret — but they get there by opposite mechanisms. That is why one wire sends a packet back and the other does not.</p>',
     '<div class="kem-compare">',
     '<div class="kem-compare-col blue">',
-    '<h4>X25519 — a Diffie-Hellman exchange</h4>',
+    '<h3>X25519 — a Diffie-Hellman exchange</h3>',
     '<p class="kem-compare-tag">Symmetric: both sides do the identical operation.</p>',
     '<pre class="kem-mini" tabindex="0" role="region" aria-label="X25519 Diffie-Hellman flow">Alice pub ───────▶ Bob\nBob   pub ◀─────── Alice\n(each combines their own\n private key with the\n other\'s public key)\n   ↓            ↓\n same secret  same secret</pre>',
     '<p>Nobody "sends the secret." Each side <em>derives</em> it locally by mixing keys. There is no ciphertext.</p>',
     '</div>',
     '<div class="kem-compare-col purple">',
-    '<h4>ML-KEM — a Key Encapsulation Mechanism</h4>',
+    '<h3>ML-KEM — a Key Encapsulation Mechanism</h3>',
     '<p class="kem-compare-tag">Asymmetric: the two sides do different operations.</p>',
     '<pre class="kem-mini" tabindex="0" role="region" aria-label="ML-KEM encapsulate decapsulate flow">Bob pub ─────────▶ Alice\n           Alice ENCAPSULATES:\n           makes a fresh secret +\n           a ciphertext holding it\nAlice ◀── ciphertext ── Bob\nBob DECAPSULATES with his\nprivate key → same secret</pre>',
     '<p><strong>Encapsulate</strong> = generate a secret and lock it into a ciphertext using Bob\'s public key. <strong>Decapsulate</strong> = Bob unlocks that ciphertext with his private key to recover the identical secret. The ciphertext is the packet that travels back up the purple wire.</p>',
