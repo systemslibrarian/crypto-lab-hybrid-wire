@@ -18,7 +18,7 @@
   --surface-inset: rgba(15, 23, 42, 0.75);
   --step-number-bg: rgba(30, 41, 59, 0.95);
 
-  --border: rgba(148, 163, 184, 0.2);
+  --border: #68778e;
   --border-soft: rgba(148, 163, 184, 0.14);
   --shadow: 0 18px 40px rgba(4, 10, 24, 0.35);
 
@@ -88,7 +88,7 @@ html[data-theme='light'] {
   --surface-inset: rgba(226, 232, 245, 0.6);
   --step-number-bg: rgba(226, 232, 245, 0.95);
 
-  --border: rgba(51, 65, 85, 0.22);
+  --border: #68778e;
   --border-soft: rgba(51, 65, 85, 0.14);
   --shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
 
