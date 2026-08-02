@@ -1,32 +1,103 @@
 import { describe, expect, it } from 'vitest';
 
 import { combineSecrets, DEFAULT_HYBRID_CONTEXT } from '../crypto/hybrid';
-import { evaluateResilience } from '../crypto/security';
+import {
+  attemptReconstruction,
+  createInterceptedRecord,
+  evaluateResilience,
+  tryOpenRecord,
+  INTERCEPTED_PLAINTEXT,
+  type HandshakeTarget,
+} from '../crypto/security';
 import { bytesEqual, toHex } from '../crypto/utils';
 
-describe('hybrid resilience claim (verdict logic)', () => {
-  it('keeps the session protected when both wires hold', () => {
-    const verdict = evaluateResilience(false, false);
-    expect(verdict.level).toBe('protected');
-    expect(verdict.survivingWire).toBe('both');
+// The resilience verdict used to be a truth table over two booleans. It is now
+// the outcome of a real reconstruction: the attacker gets the secrets the broken
+// wires leaked, runs the real HKDF combiner over them plus a guess for the rest,
+// and tries to open an AES-256-GCM record encrypted under the live session key.
+describe('hybrid resilience claim (attack is really run)', () => {
+  async function target(): Promise<HandshakeTarget> {
+    const x25519Secret = new Uint8Array(32);
+    const mlkemSecret = new Uint8Array(32);
+    crypto.getRandomValues(x25519Secret);
+    crypto.getRandomValues(mlkemSecret);
+    const sessionKey = await combineSecrets(x25519Secret, mlkemSecret, DEFAULT_HYBRID_CONTEXT);
+    return {
+      x25519Secret,
+      mlkemSecret,
+      sessionKey,
+      record: await createInterceptedRecord(sessionKey),
+    };
+  }
+
+  it('the honest session key opens the intercepted record', async () => {
+    const t = await target();
+    expect(await tryOpenRecord(t.record, t.sessionKey)).toBe(INTERCEPTED_PLAINTEXT);
   });
 
-  it('survives a classical X25519 break because ML-KEM still carries the key', () => {
-    const verdict = evaluateResilience(true, false);
+  it('a wrong key does not open it — the GCM tag is the oracle', async () => {
+    const t = await target();
+    const wrong = new Uint8Array(32);
+    crypto.getRandomValues(wrong);
+    expect(await tryOpenRecord(t.record, wrong)).toBeNull();
+  });
+
+  it('keeps the session protected when both wires hold', async () => {
+    const r = await attemptReconstruction(await target(), { x25519: false, mlkem: false });
+    expect(r.attempts).toBeGreaterThan(1);
+    expect(r.openedPlaintext).toBeNull();
+    expect(r.keyMatches).toBe(false);
+    expect(r.hiddenBits).toBe(512);
+    const verdict = evaluateResilience(r);
+    expect(verdict.level).toBe('protected');
+    expect(verdict.survivingWire).toBe('both');
+    expect(verdict.measurement).toContain('0 opened the record');
+  });
+
+  it('survives a classical X25519 break because ML-KEM still carries the key', async () => {
+    const r = await attemptReconstruction(await target(), { x25519: true, mlkem: false });
+    expect(r.leakedWires).toEqual(['x25519']);
+    expect(r.hiddenWires).toEqual(['mlkem']);
+    expect(r.hiddenBits).toBe(256);
+    expect(r.openedPlaintext).toBeNull();
+    const verdict = evaluateResilience(r);
     expect(verdict.level).toBe('degraded');
     expect(verdict.survivingWire).toBe('mlkem');
   });
 
-  it('survives a post-quantum ML-KEM break because X25519 still carries the key', () => {
-    const verdict = evaluateResilience(false, true);
+  it('survives a post-quantum ML-KEM break because X25519 still carries the key', async () => {
+    const r = await attemptReconstruction(await target(), { x25519: false, mlkem: true });
+    expect(r.leakedWires).toEqual(['mlkem']);
+    expect(r.openedPlaintext).toBeNull();
+    const verdict = evaluateResilience(r);
     expect(verdict.level).toBe('degraded');
     expect(verdict.survivingWire).toBe('x25519');
   });
 
-  it('is only compromised when both wires break together', () => {
-    const verdict = evaluateResilience(true, true);
+  // The negative verdict. With both secrets leaked the reconstruction must
+  // actually succeed and hand back the plaintext, or the results above are
+  // worthless.
+  it('is compromised when both wires break — and the record really opens', async () => {
+    const t = await target();
+    const r = await attemptReconstruction(t, { x25519: true, mlkem: true });
+    expect(r.attempts).toBe(1);
+    expect(r.keyMatches).toBe(true);
+    expect(r.bestBytesMatched).toBe(32);
+    expect(r.hiddenBits).toBe(0);
+    expect(r.openedPlaintext).toBe(INTERCEPTED_PLAINTEXT);
+    expect(bytesEqual(r.candidateKey, t.sessionKey)).toBe(true);
+    const verdict = evaluateResilience(r);
     expect(verdict.level).toBe('compromised');
     expect(verdict.survivingWire).toBe('none');
+    expect(verdict.detail).toContain(INTERCEPTED_PLAINTEXT);
+  });
+
+  it('the surviving half is really guessed: candidates differ between runs', async () => {
+    const t = await target();
+    const a = await attemptReconstruction(t, { x25519: true, mlkem: false }, 1);
+    const b = await attemptReconstruction(t, { x25519: true, mlkem: false }, 1);
+    expect(bytesEqual(a.candidateKey, b.candidateKey)).toBe(false);
+    expect(bytesEqual(a.candidateKey, t.sessionKey)).toBe(false);
   });
 });
 

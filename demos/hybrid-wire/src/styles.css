@@ -685,6 +685,20 @@ code {
   background-color: var(--bad-surface);
 }
 
+/* Before the handshake there is no session key to attack, so no verdict. */
+.resilience-verdict.pending {
+  border-color: var(--border-soft);
+  background-color: var(--surface-sunken);
+}
+
+/* The receipts line: what the reconstruction attempt actually did this run. */
+.resilience-verdict p.resilience-measurement {
+  margin-top: 0.45rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 .formula {
   padding: 0.9rem;
   border-radius: 12px;

@@ -17,7 +17,7 @@ This project is a browser demo of a hybrid key exchange that combines X25519 and
 
 **[systemslibrarian.github.io/crypto-lab-hybrid-wire](https://systemslibrarian.github.io/crypto-lab-hybrid-wire/)**
 
-The demo lets you step through a six-stage handshake, watch both shared secrets feed the HKDF combiner, and run encrypted chat with tamper detection after session derivation. The threat-model tab is interactive: toggle either wire to "broken" and prove the core claim yourself — the session only fails when X25519 *and* ML-KEM-768 fall together. You can navigate tabs for the live handshake, two-wire breakdown, resilience explorer, deployed examples, and rationale. The benchmark control runs repeated iterations (50) to compare X25519, ML-KEM-768, and hybrid performance.
+The demo lets you step through a six-stage handshake, watch both shared secrets feed the HKDF combiner, and run encrypted chat with tamper detection after session derivation. The threat-model tab is interactive and computes its verdict: toggle either wire to "broken" and the attacker gets that wire's real secret, runs the real HKDF combiner over it plus a guess for the rest, and tries to decrypt a record encrypted under the live session key. The session only fails when X25519 *and* ML-KEM-768 fall together — and when it does, the recovered plaintext is shown. You can navigate tabs for the live handshake, two-wire breakdown, resilience explorer, deployed examples, and rationale. The benchmark control runs repeated iterations (50) to compare X25519, ML-KEM-768, and hybrid performance.
 
 ## What Can Go Wrong
 

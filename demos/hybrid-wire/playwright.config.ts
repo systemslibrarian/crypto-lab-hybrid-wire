@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const PORT = 4370;
+// Overridable so a busy port on a dev box does not block the gate.
+const PORT = Number(process.env.PREVIEW_PORT ?? 4370);
 const BASE = '/crypto-lab-hybrid-wire/';
 
 export default defineConfig({

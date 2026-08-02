@@ -3,7 +3,13 @@ import './styles.css';
 import { runBenchmark, type BenchmarkResult } from './benchmark';
 import { combineSecrets, generateHybridKeyPair, hybridDecapsulate, type HybridKeyPair } from './crypto/hybrid';
 import { mlkemDecapsulate, mlkemEncapsulate } from './crypto/mlkem768';
-import { evaluateResilience } from './crypto/security';
+import {
+  attemptReconstruction,
+  createInterceptedRecord,
+  evaluateResilience,
+  type InterceptedRecord,
+  type ReconstructionResult,
+} from './crypto/security';
 import { decryptMessage, encryptMessage, type EncryptedMessage, type HybridSession } from './crypto/session';
 import { bytesEqual, fingerprint, formatMs, nowMs, shortHex, toHex, toHexSpaced } from './crypto/utils';
 import { generateX25519KeyPair, x25519SharedSecret, type X25519KeyPair } from './crypto/x25519';
@@ -46,6 +52,10 @@ interface AppState {
   tamperedSession: boolean;
   breakX25519: boolean;
   breakMlkem: boolean;
+  /** The record the attacker has intercepted, encrypted under the live session key. */
+  interceptedRecord: InterceptedRecord | null;
+  /** The most recent reconstruction attempt — the source of the resilience verdict. */
+  reconstruction: ReconstructionResult | null;
   notice: string;
 }
 
@@ -139,6 +149,8 @@ const state: AppState = {
   tamperedSession: false,
   breakX25519: false,
   breakMlkem: false,
+  interceptedRecord: null,
+  reconstruction: null,
   notice: '',
 };
 
@@ -646,8 +658,11 @@ function renderWiresTab(): string {
   ].join('');
 }
 
+// The verdict comes from the last reconstruction attempt. Until the handshake
+// has produced a session key there is nothing real to attack, so the explorer
+// says so rather than asserting an outcome.
 function renderResilienceExplorer(): string {
-  const verdict = evaluateResilience(state.breakX25519, state.breakMlkem);
+  const verdict = state.reconstruction ? evaluateResilience(state.reconstruction) : null;
 
   const x25519Toggle = [
     '<button type="button" role="switch" class="resilience-toggle blue' + (state.breakX25519 ? ' on' : '') + '" id="break-x25519" aria-checked="' + state.breakX25519 + '">',
@@ -663,20 +678,38 @@ function renderResilienceExplorer(): string {
     '</button>',
   ].join('');
 
-  const verdictIcon = verdict.level === 'compromised' ? '🔓' : verdict.level === 'degraded' ? '🛡️' : '🔒';
+  const verdictIcon = !verdict
+    ? '⏳'
+    : verdict.level === 'compromised'
+      ? '🔓'
+      : verdict.level === 'degraded'
+        ? '🛡️'
+        : '🔒';
+
+  const verdictBlock = verdict
+    ? [
+        '<div class="resilience-verdict ' + verdict.level + '" role="status" aria-live="polite" id="resilience-verdict">',
+        '<div class="resilience-verdict-head"><span class="resilience-verdict-icon" aria-hidden="true">' + verdictIcon + '</span><strong>' + verdict.headline + '</strong></div>',
+        '<p>' + verdict.detail + '</p>',
+        '<p class="resilience-measurement" id="resilience-measurement">Measured this run — attacker: ' + verdict.measurement + '.</p>',
+        '</div>',
+      ].join('')
+    : [
+        '<div class="resilience-verdict pending" role="status" aria-live="polite" id="resilience-verdict">',
+        '<div class="resilience-verdict-head"><span class="resilience-verdict-icon" aria-hidden="true">⏳</span><strong>Waiting for the handshake</strong></div>',
+        '<p>The verdict below is the result of an attack on a real session key, so it appears once the handshake has produced one.</p>',
+        '</div>',
+      ].join('');
 
   return [
     '<div class="resilience-card">',
     '<h3>Prove it yourself: break a wire</h3>',
-    '<p>Toggle a wire to "broken" and watch the verdict. The session only fails when <strong>both</strong> wires fall — break either one alone and the other still carries the key.</p>',
+    '<p>Toggle a wire to "broken" and the attacker is handed that wire\'s real secret, runs the real HKDF combiner over it plus a guess for whatever is left, and tries to decrypt an intercepted record with the key that comes out. The verdict is whatever those attempts did.</p>',
     '<p class="resilience-def"><span class="resilience-def-badge">What "broken" means</span> Assume the attacker has recovered <strong>this wire\'s 32-byte secret</strong> — not that the bytes stopped flowing. A broken wire\'s secret is revealed below as <em>known to attacker</em>; the surviving wire stays masked, so you can see HKDF\'s input is still half-unknown.</p>',
     '<div class="resilience-controls">' + x25519Toggle + mlkemToggle + '</div>',
     renderResilienceWires(),
     renderResilienceSecrets(),
-    '<div class="resilience-verdict ' + verdict.level + '" role="status" aria-live="polite">',
-    '<div class="resilience-verdict-head"><span class="resilience-verdict-icon" aria-hidden="true">' + verdictIcon + '</span><strong>' + verdict.headline + '</strong></div>',
-    '<p>' + verdict.detail + '</p>',
-    '</div>',
+    verdictBlock,
     '</div>',
   ].join('');
 }
@@ -970,8 +1003,7 @@ function attachListeners(): void {
   if (breakX25519Toggle) {
     breakX25519Toggle.onclick = function () {
       state.breakX25519 = !state.breakX25519;
-      render();
-      document.querySelector<HTMLButtonElement>('#break-x25519')?.focus();
+      void runReconstruction('#break-x25519');
     };
   }
 
@@ -979,8 +1011,7 @@ function attachListeners(): void {
   if (breakMlkemToggle) {
     breakMlkemToggle.onclick = function () {
       state.breakMlkem = !state.breakMlkem;
-      render();
-      document.querySelector<HTMLButtonElement>('#break-mlkem')?.focus();
+      void runReconstruction('#break-mlkem');
     };
   }
 
@@ -1002,12 +1033,40 @@ function attachListeners(): void {
   }
 }
 
+/**
+ * Run the attack for the current toggle state and repaint. This is the only
+ * place the resilience verdict is produced: it derives a candidate key with the
+ * real combiner from whatever the broken wires leaked, and tries the intercepted
+ * record with it. `refocus` restores keyboard focus to the toggle that fired.
+ */
+async function runReconstruction(refocus?: string): Promise<void> {
+  if (state.timeline && state.interceptedRecord) {
+    state.reconstruction = await attemptReconstruction(
+      {
+        x25519Secret: state.timeline.aliceX25519Secret,
+        mlkemSecret: state.timeline.aliceMlkemSecret,
+        sessionKey: state.timeline.aliceSessionKey,
+        record: state.interceptedRecord,
+      },
+      { x25519: state.breakX25519, mlkem: state.breakMlkem },
+    );
+  } else {
+    state.reconstruction = null;
+  }
+  render();
+  if (refocus) {
+    document.querySelector<HTMLButtonElement>(refocus)?.focus();
+  }
+}
+
 async function initializeHandshake(): Promise<void> {
   state.loading = true;
   state.notice = '';
   state.messages = [];
   state.messageNumber = 1;
   state.tamperedSession = false;
+  state.interceptedRecord = null;
+  state.reconstruction = null;
   render();
 
   const stepTimes = [0, 0, 0, 0, 0, 0];
@@ -1073,9 +1132,13 @@ async function initializeHandshake(): Promise<void> {
     },
   };
 
+  // The attacker intercepts one record encrypted under the live session key;
+  // opening it is the only definition of "recovered" the threat tab uses.
+  state.interceptedRecord = await createInterceptedRecord(combinedKeys[0]);
+
   state.currentStep = 1;
   state.loading = false;
-  render();
+  await runReconstruction();
 }
 
 async function handleSendMessage(): Promise<void> {
@@ -1177,7 +1240,7 @@ async function handleTamperSession(): Promise<void> {
 
   state.tamperedSession = true;
   state.notice = 'The ML-KEM ciphertext was modified before Bob decapsulated it. Future decryptions should fail authentication.';
-  render();
+  await runReconstruction();
 }
 
 async function handleBenchmark(): Promise<void> {
