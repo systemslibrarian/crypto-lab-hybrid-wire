@@ -76,8 +76,8 @@ async function sweepDesktop(browser, BASE, theme, results) {
 }
 
 async function main() {
-  const server = await preview({ preview: { port: 4173, strictPort: true } });
-  const BASE = server.resolvedUrls?.local?.[0] ?? 'http://localhost:4173/crypto-lab-hybrid-wire/';
+  const server = await preview({ preview: { port: 4702, strictPort: true } });
+  const BASE = server.resolvedUrls?.local?.[0] ?? 'http://localhost:4702/crypto-lab-hybrid-wire/';
   console.log(`Preview server: ${BASE}`);
   let exitCode = 0;
 
