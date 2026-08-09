@@ -64,6 +64,20 @@
 
   --skip-bg: #1e293b;
 
+  /* The resilience switch track, and its thrown state. Deliberately opaque and
+     deliberately NOT theme-specific: the track and the thumb inside it are the
+     only thing carrying the switch's on/off state (SC 1.4.11, 3:1), and the
+     translucent values these replace — rgba(100,116,139,.45) and
+     rgba(220,38,38,.8) — composited over whatever the button's fill happened to
+     be. In the light theme that produced a WHITE thumb on a track measuring
+     1.82:1 against it, on a button that is also white: the switch graphic was
+     invisible, leaving only its text label. #64748b measures 3.79:1 against the
+     dark button fill and 4.76:1 against the light one, with the thumb at 4.55:1
+     and 4.76:1 on top of it; #dc2626 measures 3.73:1 / 4.83:1 with the thumb at
+     4.62:1 / 4.83:1. */
+  --switch-track: #64748b;
+  --switch-track-on: #dc2626;
+
   font-family: Inter, 'Segoe UI', sans-serif;
   line-height: 1.5;
   font-weight: 400;
@@ -130,7 +144,12 @@ html[data-theme='light'] {
   --pill-pending-bg: rgba(37, 99, 235, 0.16);
   --pill-pending-text: #1e40af;
   --pill-tamper-bg: rgba(220, 38, 38, 0.16);
-  --pill-tamper-text: #b91c1c;
+  /* Measured on the surface it is actually painted on, not on --surface. The
+     "known to attacker" pill in the secret-reveal panel sits on
+     --pill-tamper-bg over --bad-surface over --surface-sunken — rgb(248,198,198)
+     — and #b91c1c reads 4.28:1 there against 6.47:1 on white. #a3161c is 5.16:1
+     on the pill and 7.81:1 on white. */
+  --pill-tamper-text: #a3161c;
 
   --skip-bg: #e2e8f0;
 }
@@ -305,7 +324,13 @@ code {
 
 .tab-button.active {
   background: linear-gradient(135deg, rgba(37, 99, 235, 0.95), rgba(124, 58, 237, 0.92));
-  border-color: transparent;
+  /* NOT transparent. The gradient is the only thing marking which tab is
+     selected, and against the dark page behind it the purple stop measures
+     2.77-2.99:1 — under the 3:1 SC 1.4.11 asks of a control boundary, and it
+     drifts with the page height because the canvas behind it is a radial
+     gradient. Keeping the shared --border gives the pill an edge that is 4.20:1
+     in dark and 4.51:1 in light regardless of the fill behind it. */
+  border-color: var(--border);
   color: #ffffff;
 }
 
@@ -604,7 +629,7 @@ code {
   width: 2.6rem;
   height: 1.4rem;
   border-radius: 999px;
-  background-color: rgba(100, 116, 139, 0.45);
+  background-color: var(--switch-track);
   transition: background 0.15s ease;
   flex: 0 0 auto;
 }
@@ -622,7 +647,7 @@ code {
 }
 
 .resilience-toggle.on .resilience-toggle-track {
-  background-color: rgba(220, 38, 38, 0.8);
+  background-color: var(--switch-track-on);
 }
 
 .resilience-toggle.on .resilience-toggle-thumb {
@@ -630,7 +655,12 @@ code {
 }
 
 .resilience-toggle.on {
-  border-color: var(--bad-border);
+  /* --bad-border is rgba(220,38,38,0.55), which over the button's own fill
+     measures 1.94:1 in dark and 2.49:1 in light — so throwing the switch
+     REMOVED the boundary the unthrown switch had from --border. --diagram-break
+     is the opaque "this wire is broken" red already used by the diagram:
+     4.79:1 in dark, 6.47:1 in light. */
+  border-color: var(--diagram-break);
 }
 
 .resilience-toggle-label {
@@ -733,6 +763,11 @@ code {
 
 .chat-wrapper {
   display: grid;
+  /* `minmax(0, 1fr)`, not the implicit `auto` a template-less single-column grid
+     gets. An `auto` track takes a min-content minimum, so one unbreakable token
+     in a message card stretched the track — and with it the SIBLING chat form
+     card, which shares the column — to 828px at a 380px viewport. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.8rem;
   margin-top: 1rem;
 }
@@ -776,7 +811,17 @@ code {
 
 .message-list {
   display: grid;
+  /* See `.chat-wrapper` — same implicit-`auto`-track floor, one level down. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.7rem;
+}
+
+/* The plaintext a reader typed is echoed back verbatim in a plain <p>, so it can
+   be an unbroken 90-character token. `code` already wraps `anywhere`; the prose
+   around it did not. `anywhere`, not `break-word`: `break-word` only breaks a
+   word that is alone on its line, and this one follows a "Plaintext:" label. */
+.message-card p {
+  overflow-wrap: anywhere;
 }
 
 .message-card {

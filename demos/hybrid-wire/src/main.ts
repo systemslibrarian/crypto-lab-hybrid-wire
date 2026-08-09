@@ -647,7 +647,7 @@ function renderWiresTab(): string {
     '<div class="metric-card"><h3>Total overhead vs pure X25519</h3><div class="big-number">+2,272 bytes</div><p>The extra bytes are the ML-KEM public key plus the returned ciphertext.</p></div>',
     '</div>',
     '<h3>HKDF combiner</h3>',
-    '<pre class="formula">session_key = HKDF-SHA-256(\nikm = x25519_secret || mlkem_secret,\nsalt = 32 zero bytes,\ninfo = "hybrid-wire-v1",\nlength = 32 bytes\n)</pre>',
+    '<pre class="formula" tabindex="0" role="region" aria-label="HKDF combiner formula">session_key = HKDF-SHA-256(\nikm = x25519_secret || mlkem_secret,\nsalt = 32 zero bytes,\ninfo = "hybrid-wire-v1",\nlength = 32 bytes\n)</pre>',
     '<section class="benchmark-card">',
     '<h3>Performance benchmark</h3>',
     '<p>The hybrid handshake is slower than X25519 alone but faster than many people expect. Chrome ships this cost for each protected HTTPS connection.</p>',

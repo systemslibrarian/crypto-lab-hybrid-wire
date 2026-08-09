@@ -1,96 +1,46 @@
-import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import { boot, driveAllStates, NARROW, reportCollected, watchPageErrors } from './gate';
 
 /**
- * Strict WCAG regression gate. Scans the fully-expanded page in both themes.
+ * WCAG A/AA regression gate. Deploys are already gated on the vitest suite and
+ * on `resilience.spec.ts`; this gates them on accessibility the same way.
  *
- * This SPA has no <details>: sections are swapped via a tablist. To give axe
- * every rendered surface we walk all five tabs, drive the live handshake to
- * step 6 (which reveals the combiner/match card, the secure-chat form with its
- * styled <select>, and the message list), and toggle the resilience explorer
- * so the "broken wire" verdict states render too.
+ * The lab is driven along everything it teaches: the arrival state after the
+ * async handshake boot, with Prev disabled and neither wire card mounted; both
+ * skip links focused; each of the six handshake steps as it lands, plus a step
+ * BACK, which unmounts the whole outcome block again; the secure chat's
+ * empty-input notice, a message pending, the same message authenticated, the
+ * other sender, the tampered session and the decrypt it rejects, and a long
+ * unbroken token echoed back into prose; all five tabs, only one of which
+ * exists in the DOM at a time; the KEM disclosure opened through its summary;
+ * the benchmark; all four combinations of the two resilience switches,
+ * including both-broken, which genuinely recovers the intercepted record; and
+ * the reset. Every one of those states is scanned, in both themes, at desktop
+ * and phone width.
+ *
+ * See `gate.ts` for why nothing is injected into the page — the gate this
+ * replaces pushed `opacity: 1 !important` at every element before every scan,
+ * which fabricates contrast results — why the lab's defaults are asserted
+ * rather than assumed, and why `violations` is not the whole oracle.
  */
 
-const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
+for (const theme of ['dark', 'light'] as const) {
+  test(`no WCAG A/AA violations in ${theme} theme`, async ({ page }) => {
+    test.setTimeout(900_000);
+    const errors = watchPageErrors(page);
+    await boot(page, theme);
+    await driveAllStates(page, theme);
+    expect(errors, errors.join('\n')).toEqual([]);
+    reportCollected();
+  });
 
-async function neutralizeAnimations(page: Page): Promise<void> {
-  await page.addStyleTag({
-    content: `*,*::before,*::after{
-      animation-duration:0s!important;animation-delay:0s!important;
-      transition-duration:0s!important;transition-delay:0s!important;
-      opacity:1!important;
-    }`,
+  test(`no WCAG A/AA violations in ${theme} theme at 380px`, async ({ page }) => {
+    test.setTimeout(900_000);
+    const errors = watchPageErrors(page);
+    await page.setViewportSize(NARROW);
+    await boot(page, theme);
+    await driveAllStates(page, `${theme} @380px`);
+    expect(errors, errors.join('\n')).toEqual([]);
+    reportCollected();
   });
 }
-
-// Advance the live handshake to its final step so every conditional surface
-// (match card, HKDF combiner, secure-chat form + <select>, messages) mounts.
-async function completeHandshake(page: Page): Promise<void> {
-  const next = page.locator('#next-step');
-  // The demo boots asynchronously; wait for the stepper controls first.
-  await next.waitFor({ state: 'visible', timeout: 15000 });
-  for (let i = 0; i < 6; i += 1) {
-    if (await next.isDisabled()) break;
-    await next.click();
-  }
-  // Sending a message renders a message card (incl. Decrypt button + status pill).
-  const messageInput = page.locator('#message-input');
-  if (await messageInput.count()) {
-    await messageInput.fill('hybrid handshake authenticated message');
-    await page.locator('#send-button').click();
-    const decrypt = page.locator('.decrypt-button').first();
-    if (await decrypt.count()) await decrypt.click();
-  }
-}
-
-// Visit every tab panel, revealing all content the tablist swaps in.
-async function revealAllTabs(page: Page, scan: (label: string) => Promise<void>): Promise<void> {
-  const tabIds = ['handshake', 'wires', 'threat', 'deployed', 'why'];
-  for (const id of tabIds) {
-    await page.locator(`#tab-${id}`).click();
-    await page.locator(`#tab-panel-${id}`).waitFor({ state: 'visible' });
-    if (id === 'threat') {
-      // Toggle both resilience wires so degraded + compromised verdicts render.
-      await page.locator('#break-x25519').click();
-      await scan('threat: X25519 broken');
-      await page.locator('#break-mlkem').click();
-      await scan('threat: both wires broken');
-      await page.locator('#break-x25519').click();
-      await page.locator('#break-mlkem').click();
-    }
-    await neutralizeAnimations(page);
-    await scan(`tab: ${id}`);
-  }
-}
-
-async function runScan(page: Page): Promise<void> {
-  const makeScanner = () => async (label: string) => {
-    const results = await new AxeBuilder({ page }).withTags(TAGS).analyze();
-    const summary = results.violations.map((v) => ({
-      id: v.id,
-      impact: v.impact,
-      help: v.help,
-      nodes: v.nodes.map((n) => n.target.join(' ')).slice(0, 5),
-    }));
-    expect(summary, `axe violations at [${label}]`).toEqual([]);
-  };
-  const scan = makeScanner();
-
-  await completeHandshake(page);
-  await neutralizeAnimations(page);
-  await scan('handshake complete (step 6, chat + combiner)');
-  await revealAllTabs(page, scan);
-}
-
-test('no WCAG A/AA violations in dark theme', async ({ page }) => {
-  await page.goto('.');
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  await runScan(page);
-});
-
-test('no WCAG A/AA violations in light theme', async ({ page }) => {
-  await page.goto('.');
-  await page.locator('#cl-theme-toggle').click();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-  await runScan(page);
-});
