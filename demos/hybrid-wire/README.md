@@ -10,11 +10,13 @@ The crypto is real, not simulated: X25519 comes from the browser's native WebCry
 
 ## 2. When to Use It
 
-- Migrating TLS or secure transport stacks toward post-quantum readiness. Hybrid mode allows incremental rollout without abandoning mature classical components.
-- Protecting traffic with long confidentiality lifetimes. It is useful when harvest-now, decrypt-later risk is part of your threat model.
-- Validating implementation and performance impact before production rollout. The demo exposes concrete handshake steps, sizes, and timing.
-- Extending existing X25519-based systems with a PQ wire. It fits architectures that want compatibility while introducing ML-KEM-768.
-- Not ideal for very constrained bandwidth paths. The additional hybrid overhead can be too expensive where payload size is tightly limited.
+This is where hybrid key exchange runs in the real world, not advice to use this code.
+
+- TLS 1.3. The IETF `X25519MLKEM768` group pairs X25519 with ML-KEM-768 in the handshake; the *Deployed today* tab lists Chrome 124+ and Cloudflare.
+- Messaging and remote shells. The *Deployed today* tab lists Signal PQXDH, iCloud PQ3 and OpenSSH 9.0+ as deployed hybrid key establishment, and AWS s2n-tls as available for cloud workloads.
+- Traffic with a long confidentiality lifetime, where harvest-now, decrypt-later risk is part of the threat model.
+- Not on very constrained bandwidth paths, where the additional hybrid overhead can be too expensive.
+- Not this code: it is a teaching demo (see the note above). Use a reviewed TLS stack for real deployments.
 
 ## 3. Live Demo
 
