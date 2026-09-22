@@ -6,12 +6,13 @@ This project is a browser demo of a hybrid key exchange that combines X25519 and
 
 ## When to Use It
 
-- Deploying internet-facing TLS during post-quantum migration. Hybrid exchange is appropriate when you need practical compatibility today while adding PQ resilience.
-- Protecting long-lived or high-value encrypted traffic. It fits when harvest-now, decrypt-later risk matters and you want both classical and PQ assumptions in the same handshake.
-- Testing protocol behavior before production rollout. It helps teams evaluate handshake overhead, key sizes, and implementation complexity with concrete measurements.
-- Messaging or service bootstrapping that already uses X25519. It is a direct fit when existing systems can add ML-KEM-768 as a second wire without redesigning all crypto.
-- Not for low-power or highly constrained links where bytes are critical. The extra key and ciphertext sizes (+2,272 bytes vs pure X25519) may be too costly.
-- Do NOT use this in production. It is a browser teaching demo of the hybrid handshake, not a vetted, hardened library.
+This is where hybrid key exchange runs in the real world, not advice to use this code: the lab exists to show how such a handshake fits together.
+
+- TLS 1.3 on the web. The IETF-named X25519MLKEM768 group pairs X25519 with ML-KEM-768 in the handshake; the demo's *Deployed today* tab lists Chrome 124+ and Cloudflare, and Cloudflare and Google have both deployed and measured hybrid post-quantum key exchange on production traffic.
+- Beyond TLS. The same two-wire idea appears in messaging and remote-shell setup: the *Deployed today* tab lists Signal PQXDH (X25519 plus post-quantum prekeys), iCloud PQ3 and OpenSSH 9.0+ (sntrup761x25519-sha512), with AWS s2n-tls offering hybrid TLS for cloud workloads.
+- Traffic that must stay confidential for years. Hybrids are enabled today so that traffic recorded now cannot be decrypted later once large-scale quantum computers exist.
+- Not on every link. The extra key and ciphertext sizes (+2,272 bytes vs pure X25519) may be too costly where bytes are critical.
+- Do NOT use this code in production. It is a browser teaching demo of the hybrid handshake, not a vetted, hardened library; use a reviewed TLS stack for real deployments.
 
 ## Live Demo
 

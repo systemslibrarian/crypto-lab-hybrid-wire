@@ -911,6 +911,7 @@ function render(): void {
     '<nav class="tabs" role="tablist" aria-label="Demo sections">' + renderTabs() + '</nav>',
     '<div id="tab-panel-' + state.activeTab + '" role="tabpanel" aria-labelledby="tab-' + state.activeTab + '">' + renderPanelContent() + '</div>',
     '<div aria-live="polite" role="status">' + renderNotice() + '</div>',
+    '<p class="footer-note"><strong>Not production crypto — a teaching demo.</strong> This is a browser demonstration of the hybrid handshake, not a vetted, hardened, side-channel-resistant library. Use a reviewed TLS stack (for example the IETF X25519MLKEM768 group) for real deployments.</p>',
     '<p class="footer-note">Offline runtime only: Vite + TypeScript + Web Crypto + verified noble packages.</p>',
     '</div>',
   ].join('');
