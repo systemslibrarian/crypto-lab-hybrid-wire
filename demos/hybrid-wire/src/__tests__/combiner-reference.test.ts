@@ -20,11 +20,19 @@
  *
  * WHAT MAKES THIS AN INDEPENDENT CHECK
  *
- * The reference below is HMAC-SHA-256 extract-then-expand spelled out from RFC
- * 5869 §2.2 and §2.3, over `node:crypto`'s HMAC. It does not call any HKDF
- * implementation: not WebCrypto's, which is what `combineSecrets` uses, and not
- * Node's `hkdfSync` either. So the two sides share SHA-256 and nothing above it,
- * and a defect in how the lab drives WebCrypto's HKDF cannot be present in both.
+ * The reference below is built up from `crypto.subtle.digest('SHA-256')` and
+ * nothing else: HMAC spelled out from RFC 2104 §2 (the ipad/opad construction),
+ * then extract-then-expand spelled out from RFC 5869 §2.2 and §2.3. It calls no
+ * HMAC and no HKDF implementation -- not WebCrypto's, which is what
+ * `combineSecrets` uses. So the two sides share the SHA-256 hash and nothing
+ * above it, and a defect in how the lab drives WebCrypto's HKDF cannot be
+ * present in both.
+ *
+ * Node's `createHmac` would have been shorter and was tried first: `tsc --noEmit`
+ * rejected it, because this is a browser-only lab with no `@types/node`, and
+ * adding that dependency to get a test helper is the wrong trade. Writing the
+ * construction out is also the stronger version -- it shares one primitive with
+ * the code under test instead of two.
  *
  * It is NOT a published vector. There is no official test vector for this lab's
  * own concatenation and context -- that combination is this demo's -- so what
@@ -36,49 +44,85 @@
  * judge anything, because a reference nobody verified is just a second
  * implementation of the same opinion.
  */
-import { createHmac } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 
 import { combineSecrets, DEFAULT_HYBRID_CONTEXT } from '../crypto/hybrid';
 import { toHex } from '../crypto/utils';
 
+const HASH_LEN = 32;
+const BLOCK_LEN = 64;
+
+const cat = (...parts: Uint8Array[]): Uint8Array => {
+  const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+  let at = 0;
+  for (const p of parts) {
+    out.set(p, at);
+    at += p.length;
+  }
+  return out;
+};
+
+/* Copied into a freshly allocated Uint8Array rather than wrapping the digest's
+ * buffer, so the type is Uint8Array<ArrayBuffer> and not <ArrayBufferLike>. The
+ * wrapping version compiles here and fails `tsc --noEmit`, which is part of the
+ * build and therefore part of the gate. */
+const sha256 = async (data: Uint8Array): Promise<Uint8Array> => {
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', data as BufferSource));
+  const out = new Uint8Array(HASH_LEN);
+  out.set(digest);
+  return out;
+};
+
+/** RFC 2104 §2. HMAC(K, m) = H((K' ^ opad) | H((K' ^ ipad) | m)). */
+async function hmacSha256(key: Uint8Array, message: Uint8Array): Promise<Uint8Array> {
+  let k = key;
+  if (k.length > BLOCK_LEN) k = await sha256(k);
+  const padded = new Uint8Array(BLOCK_LEN);
+  padded.set(k, 0);
+  const inner = new Uint8Array(BLOCK_LEN);
+  const outer = new Uint8Array(BLOCK_LEN);
+  for (let i = 0; i < BLOCK_LEN; i += 1) {
+    inner[i] = padded[i] ^ 0x36;
+    outer[i] = padded[i] ^ 0x5c;
+  }
+  return sha256(cat(outer, await sha256(cat(inner, message))));
+}
+
 /** RFC 5869 §2.2. PRK = HMAC-Hash(salt, IKM). */
-function hkdfExtract(salt: Uint8Array, ikm: Uint8Array): Uint8Array {
-  return new Uint8Array(createHmac('sha256', salt).update(ikm).digest());
+function hkdfExtract(salt: Uint8Array, ikm: Uint8Array): Promise<Uint8Array> {
+  return hmacSha256(salt, ikm);
 }
 
 /** RFC 5869 §2.3. T(1) = HMAC(PRK, info | 0x01), T(n) = HMAC(PRK, T(n-1) | info | n). */
-function hkdfExpand(prk: Uint8Array, info: Uint8Array, length: number): Uint8Array {
-  const hashLen = 32;
-  const n = Math.ceil(length / hashLen);
+async function hkdfExpand(prk: Uint8Array, info: Uint8Array, length: number): Promise<Uint8Array> {
+  const n = Math.ceil(length / HASH_LEN);
   if (n > 255) throw new Error('RFC 5869 allows at most 255 blocks');
-  const out = new Uint8Array(n * hashLen);
-  let previous = new Uint8Array(0);
+  const out = new Uint8Array(n * HASH_LEN);
+  /* Annotated, because `new Uint8Array(0)` narrows to Uint8Array<ArrayBuffer> and
+     the HMAC result is Uint8Array<ArrayBufferLike>; without this the loop does not
+     type-check under the build's `tsc --noEmit`. */
+  let previous: Uint8Array = new Uint8Array(0);
   for (let i = 1; i <= n; i += 1) {
-    const h = createHmac('sha256', prk);
-    h.update(previous);
-    h.update(info);
-    h.update(Uint8Array.from([i]));
-    previous = new Uint8Array(h.digest());
-    out.set(previous, (i - 1) * hashLen);
+    previous = await hmacSha256(prk, cat(previous, info, Uint8Array.from([i])));
+    out.set(previous, (i - 1) * HASH_LEN);
   }
   return out.subarray(0, length);
 }
 
-function hkdf(ikm: Uint8Array, salt: Uint8Array, info: Uint8Array, length: number): Uint8Array {
-  return hkdfExpand(hkdfExtract(salt, ikm), info, length);
+async function hkdf(
+  ikm: Uint8Array,
+  salt: Uint8Array,
+  info: Uint8Array,
+  length: number,
+): Promise<Uint8Array> {
+  return hkdfExpand(await hkdfExtract(salt, ikm), info, length);
 }
 
-const concat = (a: Uint8Array, b: Uint8Array): Uint8Array => {
-  const out = new Uint8Array(a.length + b.length);
-  out.set(a, 0);
-  out.set(b, a.length);
-  return out;
-};
+const concat = (a: Uint8Array, b: Uint8Array): Uint8Array => cat(a, b);
 
 describe('the RFC 5869 reference used below is itself correct', () => {
-  it('reproduces RFC 5869 Test Case 1', () => {
-    const okm = hkdf(
+  it('reproduces RFC 5869 Test Case 1', async () => {
+    const okm = await hkdf(
       new Uint8Array(22).fill(0x0b),
       Uint8Array.from([0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c]),
       Uint8Array.from([0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9]),
@@ -91,8 +135,8 @@ describe('the RFC 5869 reference used below is itself correct', () => {
     );
   });
 
-  it('reproduces RFC 5869 Test Case 3, the empty salt and info case', () => {
-    const okm = hkdf(new Uint8Array(22).fill(0x0b), new Uint8Array(0), new Uint8Array(0), 42);
+  it('reproduces RFC 5869 Test Case 3, the empty salt and info case', async () => {
+    const okm = await hkdf(new Uint8Array(22).fill(0x0b), new Uint8Array(0), new Uint8Array(0), 42);
     expect(toHex(okm)).toBe(
       '8da4e775a563c18f715f802a063c5a31'
         + 'b8a11f5c5ee1879ec3454e5f3c738d2d'
@@ -111,15 +155,17 @@ describe('combineSecrets agrees with the RFC 5869 reference, byte for byte', () 
 
   const expected = (x: Uint8Array, m: Uint8Array, context: string) =>
     hkdf(concat(x, m), new Uint8Array(32), new TextEncoder().encode(context), 32);
+  const expectedHex = async (x: Uint8Array, m: Uint8Array, context: string) =>
+    toHex(await expected(x, m, context));
 
   it('matches on the default context', async () => {
     const got = await combineSecrets(x25519Secret, mlkemSecret, DEFAULT_HYBRID_CONTEXT);
-    expect(toHex(got)).toBe(toHex(expected(x25519Secret, mlkemSecret, DEFAULT_HYBRID_CONTEXT)));
+    expect(toHex(got)).toBe(await expectedHex(x25519Secret, mlkemSecret, DEFAULT_HYBRID_CONTEXT));
   });
 
   it('matches on a different context, so `info` is what carries it', async () => {
     const got = await combineSecrets(x25519Secret, mlkemSecret, 'some-other-context');
-    expect(toHex(got)).toBe(toHex(expected(x25519Secret, mlkemSecret, 'some-other-context')));
+    expect(toHex(got)).toBe(await expectedHex(x25519Secret, mlkemSecret, 'some-other-context'));
   });
 
   /* The assertions below are the point of the file. Each states a choice the
@@ -129,9 +175,9 @@ describe('combineSecrets agrees with the RFC 5869 reference, byte for byte', () 
 
   it('concatenates x25519 BEFORE ml-kem, not the other way round', async () => {
     const got = await combineSecrets(x25519Secret, mlkemSecret, DEFAULT_HYBRID_CONTEXT);
-    const swapped = expected(mlkemSecret, x25519Secret, DEFAULT_HYBRID_CONTEXT);
-    expect(toHex(got)).not.toBe(toHex(swapped));
-    expect(toHex(got)).toBe(toHex(expected(x25519Secret, mlkemSecret, DEFAULT_HYBRID_CONTEXT)));
+    const swapped = await expectedHex(mlkemSecret, x25519Secret, DEFAULT_HYBRID_CONTEXT);
+    expect(toHex(got)).not.toBe(swapped);
+    expect(toHex(got)).toBe(await expectedHex(x25519Secret, mlkemSecret, DEFAULT_HYBRID_CONTEXT));
   });
 
   /* THE SALT IS INERT, and this says so rather than implying it is a parameter.
@@ -155,17 +201,22 @@ describe('combineSecrets agrees with the RFC 5869 reference, byte for byte', () 
     const info = new TextEncoder().encode(DEFAULT_HYBRID_CONTEXT);
 
     for (const zeroSalt of [new Uint8Array(0), new Uint8Array(16), new Uint8Array(32), new Uint8Array(64)]) {
-      expect(toHex(got)).toBe(toHex(hkdfExpand(hkdfExtract(zeroSalt, ikm), info, 32)));
+      expect(toHex(got)).toBe(toHex(await hkdfExpand(await hkdfExtract(zeroSalt, ikm), info, 32)));
     }
 
     const nonZeroSalt = new Uint8Array(32).fill(0x5c);
-    expect(toHex(got)).not.toBe(toHex(hkdfExpand(hkdfExtract(nonZeroSalt, ikm), info, 32)));
+    expect(toHex(got)).not.toBe(
+      toHex(await hkdfExpand(await hkdfExtract(nonZeroSalt, ikm), info, 32)),
+    );
   });
 
   it('passes the context as `info`, not as the salt', async () => {
     const got = await combineSecrets(x25519Secret, mlkemSecret, DEFAULT_HYBRID_CONTEXT);
-    const contextAsSalt = hkdfExpand(
-      hkdfExtract(new TextEncoder().encode(DEFAULT_HYBRID_CONTEXT), concat(x25519Secret, mlkemSecret)),
+    const contextAsSalt = await hkdfExpand(
+      await hkdfExtract(
+        new TextEncoder().encode(DEFAULT_HYBRID_CONTEXT),
+        concat(x25519Secret, mlkemSecret),
+      ),
       new Uint8Array(0),
       32,
     );
@@ -178,7 +229,7 @@ describe('combineSecrets agrees with the RFC 5869 reference, byte for byte', () 
     /* And the first 32 bytes of a longer derivation are the same 32 bytes, so the
        length is a choice about how much to take rather than about what to compute.
        This is what makes the assertion above a claim about L and not a tautology. */
-    const longer = hkdf(
+    const longer = await hkdf(
       concat(x25519Secret, mlkemSecret),
       new Uint8Array(32),
       new TextEncoder().encode(DEFAULT_HYBRID_CONTEXT),
