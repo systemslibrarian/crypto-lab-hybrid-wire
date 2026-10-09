@@ -139,7 +139,7 @@ if (!appRoot) {
 const state: AppState = {
   activeTab: 'handshake',
   currentStep: 1,
-  loading: true,
+  loading: false,
   timeline: null,
   sessions: null,
   messages: [],
@@ -1061,7 +1061,11 @@ async function runReconstruction(refocus?: string): Promise<void> {
 }
 
 async function initializeHandshake(): Promise<void> {
+  if (state.loading) return;
   state.loading = true;
+  // A reset must invalidate the old key before resetting its message counter.
+  state.sessions = null;
+  state.timeline = null;
   state.notice = '';
   state.messages = [];
   state.messageNumber = 1;
@@ -1143,7 +1147,7 @@ async function initializeHandshake(): Promise<void> {
 }
 
 async function handleSendMessage(): Promise<void> {
-  if (!state.sessions) {
+  if (state.loading || !state.sessions) {
     return;
   }
 
@@ -1161,19 +1165,27 @@ async function handleSendMessage(): Promise<void> {
   }
 
   const sender = senderSelect.value === 'bob' ? 'bob' : 'alice';
-  const encrypted = await encryptMessage(state.sessions[sender], plaintext, state.messageNumber);
-
-  state.messages.unshift({
-    sender,
-    plaintext,
-    encrypted,
-    verification: 'pending',
-  });
-
-  state.messageNumber += 1;
-  state.notice = 'Message encrypted and ready for recipient decryption.';
+  const sessions = state.sessions;
+  // Reserve before the first await. Failed encryptions burn their number:
+  // returning it to the pool could reuse an AES-GCM IV with the same key.
+  if (!Number.isSafeInteger(state.messageNumber) || state.messageNumber >= Number.MAX_SAFE_INTEGER) {
+    state.notice = 'Message counter exhausted. Establish a new session.';
+    render();
+    return;
+  }
+  const messageNumber = state.messageNumber++;
   messageInput.value = '';
-  render();
+  try {
+    const encrypted = await encryptMessage(sessions[sender], plaintext, messageNumber);
+    if (state.sessions !== sessions) return;
+    state.messages.unshift({ sender, plaintext, encrypted, verification: 'pending' });
+    state.notice = 'Message encrypted and ready for recipient decryption.';
+    render();
+  } catch (error) {
+    if (state.sessions !== sessions) return;
+    state.notice = 'Message encryption failed: ' + (error as Error).message;
+    render();
+  }
 }
 
 async function handleDecrypt(index: number): Promise<void> {

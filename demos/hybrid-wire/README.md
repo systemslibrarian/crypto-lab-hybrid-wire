@@ -87,3 +87,10 @@ This project is one entry in the broader suite at https://systemslibrarian.githu
 - [crypto-lab-ratchet-wire](https://systemslibrarian.github.io/crypto-lab-ratchet-wire/) — a Double Ratchet over X25519 + HKDF + AES-256-GCM, the classical messaging counterpart.
 
 Whether you eat or drink or whatever you do, do it all for the glory of God. — 1 Corinthians 10:31
+
+## Publishing requests
+
+`npm run deploy` requests the existing `deploy.yml` workflow at `main`.
+The workflow retains unit, production-build and complete browser gates.
+Request success does not establish publication; inspect current-head CI,
+actual deployment and the public application. Failed requests retain their nonzero status.
