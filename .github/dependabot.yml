@@ -16,7 +16,7 @@
 version: 2
 updates:
   - package-ecosystem: "npm"
-    directory: "/"
+    directory: "/demos/hybrid-wire"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
