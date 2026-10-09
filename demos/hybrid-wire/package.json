@@ -21,7 +21,7 @@
     "@playwright/test": "^1.63.0",
     "gh-pages": "^6.3.0",
     "playwright": "^1.61.1",
-    "typescript": "^6.0.2",
+    "typescript": "^7.0.2",
     "vite": "^8.3.3",
     "vitest": "^4.1.2"
   }
