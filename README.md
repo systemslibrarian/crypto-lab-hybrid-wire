@@ -22,6 +22,7 @@ The demo lets you step through a six-stage handshake, watch both shared secrets 
 
 ## What Can Go Wrong
 
+- Reusing a message number with the same session key reuses an AES-GCM IV. The sender reserves each number before asynchronous encryption, burns it after errors and discards stale results when the session changes. A reset invalidates the old session before resetting its counter; new sessions use newly established keys.
 - Combining the two shared secrets badly. XOR-ing or truncating raw secrets can void the security argument; the secrets must flow through a sound KDF (HKDF here) that binds both wires.
 - Larger handshake messages. The added ML-KEM-768 key and ciphertext (+2,272 bytes vs X25519) can push a ClientHello past one packet and trip middlebox ossification on old network gear.
 - Treating the hybrid as twice as strong. It is a hedge, not a multiplier: it survives a break of either wire, but a flaw in the combiner or in either implementation can still sink the session.
