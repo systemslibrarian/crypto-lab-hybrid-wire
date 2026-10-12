@@ -12,7 +12,7 @@ The crypto is real, not simulated: X25519 comes from the browser's native WebCry
 
 This is where hybrid key exchange runs in the real world, not advice to use this code.
 
-- TLS 1.3. The IETF `X25519MLKEM768` group pairs X25519 with ML-KEM-768 in the handshake; the *Deployed today* tab lists Chrome 124+ and Cloudflare.
+- TLS 1.3. The IETF `X25519MLKEM768` group pairs X25519 with ML-KEM-768 in the handshake; the *Deployed today* tab lists Chrome 124-era draft Kyber → Chrome 131 standardized ML-KEM and Cloudflare.
 - Messaging and remote shells. The *Deployed today* tab lists Signal PQXDH, iCloud PQ3 and OpenSSH 9.0+ as deployed hybrid key establishment, and AWS s2n-tls as available for cloud workloads.
 - Traffic with a long confidentiality lifetime, where harvest-now, decrypt-later risk is part of the threat model.
 - Not on very constrained bandwidth paths, where the additional hybrid overhead can be too expensive.
@@ -94,3 +94,5 @@ Whether you eat or drink or whatever you do, do it all for the glory of God. —
 The workflow retains unit, production-build and complete browser gates.
 Request success does not establish publication; inspect current-head CI,
 actual deployment and the public application. Failed requests retain their nonzero status.
+
+Deployment history source: [Google, September 13, 2024 — A new path for Kyber on the web](https://security.googleblog.com/2024/09/a-new-path-for-kyber-on-web.html). These are TLS named key-exchange groups, not cipher suites.

@@ -94,9 +94,9 @@ const threatRows = [
 
 const deploymentCards = [
   {
-    title: 'Chrome 124+',
-    scheme: 'Hybrid TLS using X25519 plus ML-KEM / Kyber transition ciphersuites',
-    coverage: 'Default browser HTTPS handshakes on modern Chromium paths',
+    title: 'Chrome 124-era draft Kyber → Chrome 131 standardized ML-KEM',
+    scheme: 'TLS named key-exchange groups: X25519Kyber768Draft00 (124-era), X25519MLKEM768 (131)',
+    coverage: 'Google announcement, September 13, 2024: standardized ML-KEM replaces the incompatible draft Kyber group in Chrome 131',
     status: 'Deployed',
   },
   {
@@ -820,6 +820,7 @@ function renderDeployedTab(): string {
           '<h3>' + card.title + '</h3>',
           '<p><strong>Scheme:</strong> ' + card.scheme + '</p>',
           '<p><strong>Coverage:</strong> ' + card.coverage + '</p>',
+          card.title.startsWith('Chrome') ? '<p><a href="https://security.googleblog.com/2024/09/a-new-path-for-kyber-on-web.html">Google deployment announcement — September 13, 2024</a></p>' : '',
           '</article>',
         ].join('');
       })
