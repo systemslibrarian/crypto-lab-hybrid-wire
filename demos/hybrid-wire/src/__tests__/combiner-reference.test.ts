@@ -45,6 +45,8 @@
  * implementation of the same opinion.
  */
 import { describe, expect, it } from 'vitest';
+import { hkdf as nobleHkdf } from '@noble/hashes/hkdf.js';
+import { sha256 as nobleSha256 } from '@noble/hashes/sha2.js';
 
 import { combineSecrets, DEFAULT_HYBRID_CONTEXT } from '../crypto/hybrid';
 import { toHex } from '../crypto/utils';
@@ -236,5 +238,23 @@ describe('combineSecrets agrees with the RFC 5869 reference, byte for byte', () 
       64,
     );
     expect(toHex(got)).toBe(toHex(longer.subarray(0, 32)));
+  });
+});
+
+describe('combineSecrets agrees with an outside HKDF implementation', () => {
+  it('matches @noble/hashes on the lab\'s exact input order, salt, info and length', async () => {
+    const x25519Secret = Uint8Array.from({ length: 32 }, (_, i) => i);
+    const mlkemSecret = Uint8Array.from({ length: 32 }, (_, i) => 0xff - i);
+    const context = new TextEncoder().encode(DEFAULT_HYBRID_CONTEXT);
+    const expected = nobleHkdf(
+      nobleSha256,
+      cat(x25519Secret, mlkemSecret),
+      new Uint8Array(32),
+      context,
+      32,
+    );
+
+    expect(toHex(await combineSecrets(x25519Secret, mlkemSecret, DEFAULT_HYBRID_CONTEXT)))
+      .toBe(toHex(expected));
   });
 });
