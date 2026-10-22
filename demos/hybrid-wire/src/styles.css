@@ -883,6 +883,15 @@ code {
   font-size: 0.92rem;
 }
 
+.standard-note {
+  padding: 0.75rem 0.9rem;
+  border-left: 3px solid var(--accent-blue);
+  border-radius: 0 8px 8px 0;
+  background: var(--surface-sunken);
+  color: var(--text);
+  line-height: 1.5;
+}
+
 @media (max-width: 760px) {
   #app {
     width: min(100vw, calc(100vw - 1rem));

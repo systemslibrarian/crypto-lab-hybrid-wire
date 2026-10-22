@@ -2,7 +2,8 @@ import { generateMLKEMKeyPair, mlkemDecapsulate, mlkemEncapsulate, type MLKEMKey
 import { concatBytes, nowMs } from './utils';
 import { generateX25519KeyPair, x25519SharedSecret, type X25519KeyPair } from './x25519';
 
-// Hybrid design reference: https://datatracker.ietf.org/doc/draft-ietf-tls-hybrid-design/
+// Related TLS standards: https://www.rfc-editor.org/rfc/rfc9954.html
+// and https://www.rfc-editor.org/rfc/rfc10024.html (X25519MLKEM768).
 export interface HybridKeyPair {
   x25519: X25519KeyPair;
   mlkem: MLKEMKeyPair;
@@ -32,20 +33,22 @@ async function getSubtle(): Promise<SubtleCrypto> {
 
 // Combiner note — transcript binding is intentionally OUT of scope here.
 //
-// This follows draft-ietf-tls-hybrid-design, where the two shared secrets are
-// concatenated (x25519_secret || mlkem_secret) and fed into the KDF WITHOUT the
-// combiner itself binding the ciphertexts/public keys. In real TLS 1.3 that
-// binding is provided one layer up: the hybrid secret enters the key schedule
-// together with the handshake transcript hash (ClientHello…ServerFinished), so
-// the ML-KEM ciphertext and both public keys are already authenticated by the
-// transport before any record key exists.
+// This is a teaching construction: HKDF-SHA-256(x25519_secret || mlkem_secret),
+// with a zero salt and the "hybrid-wire-v1" info string. The final TLS 1.3
+// X25519MLKEM768 group in RFC 10024 §4.3 concatenates in the reverse order,
+// mlkem_secret || x25519_secret, then enters the TLS 1.3 key schedule. It also
+// puts ML-KEM before X25519 in both client and server key_share values (§§4.1–4.2).
+// RFC 9954 describes the TLS hybrid framework; neither RFC specifies this
+// demo's direct HKDF-to-AES session-key construction. These outputs are not TLS
+// interoperable, and reversing these two arguments alone would not make them so.
 //
 // This demo has no surrounding TLS transcript, so the combiner below is UNBOUND
 // on its own. Do NOT lift this function into another protocol as-is: if your
 // construction lacks an outer transcript, add the KEM ciphertext and both peers'
 // public keys to the HKDF `info` (or a preceding transcript hash) so the derived
-// key commits to the exact handshake it came from. Concatenation alone gives you
-// the "safe if either wire holds" property; it does NOT give you channel binding.
+// key commits to the exact handshake it came from. A production protocol also
+// needs peer authentication and a full security analysis; concatenation alone
+// does not provide channel binding or authenticated key exchange.
 export async function combineSecrets(
   x25519Secret: Uint8Array,
   mlkemSecret: Uint8Array,

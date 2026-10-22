@@ -407,7 +407,7 @@ function renderMatchCard(): string {
     '<h3>' + status + '</h3>',
     '<p>HKDF-SHA-256 mixes the classical X25519 secret and the post-quantum ML-KEM secret into one 32-byte AES-256-GCM session key. Watch both secrets feed the combiner — neither half alone produces the key.</p>',
     renderCombinerFlow(),
-    '<p class="footer-note">This mirrors the combiner design in IETF draft-ietf-tls-hybrid-design and NIST SP 800-56C Rev. 2.</p>',
+    '<p class="standard-note"><strong>Teaching construction, not TLS X25519MLKEM768.</strong> This demo feeds X25519 secret ‖ ML-KEM secret to its own HKDF step. <a href="https://www.rfc-editor.org/rfc/rfc10024.html#section-4.3">RFC 10024 §4.3 (August 2026)</a> specifies ML-KEM secret ‖ X25519 secret for the TLS group, followed by the TLS 1.3 key schedule. The TLS handshake transcript and peer authentication are not modeled here.</p>',
     '</div>',
   ].join('');
 }
@@ -648,6 +648,7 @@ function renderWiresTab(): string {
     '</div>',
     '<h3>HKDF combiner</h3>',
     '<pre class="formula" tabindex="0" role="region" aria-label="HKDF combiner formula">session_key = HKDF-SHA-256(\nikm = x25519_secret || mlkem_secret,\nsalt = 32 zero bytes,\ninfo = "hybrid-wire-v1",\nlength = 32 bytes\n)</pre>',
+    '<p class="standard-note">This formula belongs to this browser teaching exchange. The finalized TLS X25519MLKEM768 group instead puts ML-KEM first in its client share, server share, and shared secret; TLS derives traffic keys through its own transcript-bound key schedule. See <a href="https://www.rfc-editor.org/rfc/rfc10024.html#section-4">RFC 10024 §4 (August 2026)</a> and the <a href="https://www.rfc-editor.org/rfc/rfc9954.html#section-3">RFC 9954 TLS hybrid framework (July 2026)</a>. The displayed exchange is not wire-compatible with TLS.</p>',
     '<section class="benchmark-card">',
     '<h3>Performance benchmark</h3>',
     '<p>The hybrid handshake is slower than X25519 alone but faster than many people expect. Chrome ships this cost for each protected HTTPS connection.</p>',
@@ -872,7 +873,7 @@ function renderWhyTab(): string {
     '<div class="connection-card"><strong>kyber-vault → hybrid-wire</strong><p>ML-KEM alone becomes ML-KEM plus X25519 in the real-world deployed handshake.</p></div>',
     '<div class="connection-card"><strong>dilithium-seal + iron-serpent</strong><p>Hybrid-wire establishes the key. Signature and data-encryption demos complete the secure channel story.</p></div>',
     '</div>',
-    '<p class="footer-note">References: IETF draft-ietf-tls-hybrid-design, NIST FIPS 203, and NIST SP 800-56C Rev. 2.</p>',
+    '<p class="footer-note">Sources: <a href="https://www.rfc-editor.org/rfc/rfc9954.html">RFC 9954 (July 2026)</a> describes the TLS hybrid framework; <a href="https://www.rfc-editor.org/rfc/rfc10024.html">RFC 10024 (August 2026)</a> specifies TLS X25519MLKEM768. This demo uses a different, X25519-first HKDF teaching construction. ML-KEM is defined in <a href="https://csrc.nist.gov/pubs/fips/203/final">NIST FIPS 203</a>.</p>',
     '</section>',
   ].join('');
 }

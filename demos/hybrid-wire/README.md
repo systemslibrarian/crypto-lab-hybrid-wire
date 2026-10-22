@@ -2,7 +2,7 @@
 
 ## 1. What It Is
 
-This demo implements a hybrid key exchange that combines X25519 and ML-KEM-768, then derives a shared session key with HKDF-SHA-256 for AES-256-GCM encryption. It solves the transition problem of protecting sessions against both present-day classical attacks and future quantum-capable attackers. The protocol is asymmetric and post-quantum-hybrid because it mixes two independent key-establishment primitives into one output key. Security is designed so the session key remains safe if either primitive remains secure.
+This demo implements a teaching hybrid key exchange that combines X25519 and ML-KEM-768, then derives a shared session key with HKDF-SHA-256 for AES-256-GCM encryption. It illustrates the transition problem of protecting sessions against both present-day classical attacks and future quantum-capable attackers. The construction is asymmetric and post-quantum-hybrid because it mixes two independent key-establishment primitives into one output key. Under the demo's passive, one-component-compromised model, the security goal is that the resulting session key remains protected if either primitive remains secure. This exchange does not model peer authentication.
 
 The crypto is real, not simulated: X25519 comes from the browser's native WebCrypto (with a `@noble/curves` fallback), ML-KEM-768 from `@noble/post-quantum` (FIPS 203), and the combiner and record encryption from WebCrypto HKDF-SHA-256 and AES-256-GCM. The benchmark numbers shown in the UI are measured live in your browser, not baked-in figures.
 
@@ -62,17 +62,26 @@ specs under `e2e/` are a separate command and are not collected by Vitest.
 
 ## 6. A Note on the Combiner
 
-The HKDF combiner (`combineSecrets` in `src/crypto/hybrid.ts`) concatenates the
-two shared secrets — `HKDF(x25519_secret || mlkem_secret)` — exactly as in
-[draft-ietf-tls-hybrid-design](https://datatracker.ietf.org/doc/draft-ietf-tls-hybrid-design/).
-It does **not** itself bind the ML-KEM ciphertext or the public keys into the KDF
-context. That transcript binding is provided one layer up by TLS 1.3, where the
-hybrid secret enters the key schedule alongside the handshake transcript hash.
-This demo has no surrounding TLS transcript, so the combiner is unbound on its own.
-If you reuse this combiner in a protocol without an outer transcript, add the KEM
-ciphertext and both peers' public keys to the HKDF `info` (or a transcript hash)
-so the derived key commits to the handshake it came from. See the comment on
-`combineSecrets` for the full explanation.
+The HKDF combiner (`combineSecrets` in `src/crypto/hybrid.ts`) is this demo's
+own construction: it concatenates `x25519_secret || mlkem_secret`, then derives
+a 32-byte chat key with HKDF-SHA-256, a zero salt and `hybrid-wire-v1` as `info`.
+It is **not** the TLS 1.3 `X25519MLKEM768` implementation. The finalized
+[RFC 10024, §§4.1–4.3 (August 2026)](https://www.rfc-editor.org/rfc/rfc10024.html#section-4)
+puts ML-KEM before X25519 in the client and server key shares **and** the
+64-byte shared secret (`mlkem_secret || x25519_secret`), which feeds the TLS 1.3
+key schedule. [RFC 9954 (July 2026)](https://www.rfc-editor.org/rfc/rfc9954.html#section-3)
+sets out the general TLS hybrid framework; it does not specify this demo's
+direct HKDF-to-AES construction. Reversing these two bytestrings in this demo
+alone would not add the missing TLS framing, transcript, key schedule, or peer
+authentication, and would not make the demo interoperable with TLS.
+
+This combiner does **not** bind the ML-KEM ciphertext or public keys into the
+KDF context. TLS 1.3 provides transcript binding in its surrounding handshake;
+the demo has no TLS transcript, so it is unbound on its own. Do not reuse the
+combiner as a protocol: an actual design would need to commit to the full
+handshake (including KEM ciphertext and peer public keys), authenticate peers,
+and receive a security review. See the comment on `combineSecrets` for the
+precise implementation boundary.
 
 ## 7. Part of the Crypto-Lab Suite
 

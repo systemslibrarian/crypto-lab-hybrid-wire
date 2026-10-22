@@ -2,7 +2,7 @@
 
 ## What It Is
 
-This project is a browser demo of a hybrid key exchange that combines X25519 and ML-KEM-768, then derives a session key with HKDF-SHA-256 for AES-256-GCM message encryption. It addresses the transition problem where systems need confidentiality against both classical and future quantum-capable adversaries. The design is asymmetric and post-quantum-hybrid: two independent key-establishment wires are combined into one session key. The security goal is that the resulting session remains protected if either X25519 or ML-KEM-768 remains secure.
+This project is a browser teaching demo of a hybrid key exchange that combines X25519 and ML-KEM-768, then derives a session key with HKDF-SHA-256 for AES-256-GCM message encryption. It illustrates the transition problem where systems need confidentiality against both classical and future quantum-capable adversaries. The design is asymmetric and post-quantum-hybrid: two independent key-establishment wires are combined into one session key. Under the demo's passive, one-component-compromised model, its security goal is that the session key remains protected if either X25519 or ML-KEM-768 remains secure. The demo does not authenticate peers.
 
 ## When to Use It
 
@@ -19,6 +19,19 @@ This is where hybrid key exchange runs in the real world, not advice to use this
 **[systemslibrarian.github.io/crypto-lab-hybrid-wire](https://systemslibrarian.github.io/crypto-lab-hybrid-wire/)**
 
 The demo lets you step through a six-stage handshake, watch both shared secrets feed the HKDF combiner, and run encrypted chat with tamper detection after session derivation. The threat-model tab is interactive and computes its verdict: toggle either wire to "broken" and the attacker gets that wire's real secret, runs the real HKDF combiner over it plus a guess for the rest, and tries to decrypt a record encrypted under the live session key. The session only fails when X25519 *and* ML-KEM-768 fall together — and when it does, the recovered plaintext is shown. You can navigate tabs for the live handshake, two-wire breakdown, resilience explorer, deployed examples, and rationale. The benchmark control runs repeated iterations (50) to compare X25519, ML-KEM-768, and hybrid performance.
+
+### Relationship to the TLS standard
+
+This demo's `HKDF(x25519_secret || mlkem_secret)` with a zero salt and
+`hybrid-wire-v1` context is its own chat-key teaching construction. It does not
+implement the TLS 1.3 `X25519MLKEM768` named group or produce TLS-compatible
+keys or messages. [RFC 10024 §§4.1–4.3 (August 2026)](https://www.rfc-editor.org/rfc/rfc10024.html#section-4)
+specifies ML-KEM **first** in client and server key shares and the 64-byte
+shared secret, then uses the TLS 1.3 key schedule. The general TLS hybrid
+framework is [RFC 9954 (July 2026)](https://www.rfc-editor.org/rfc/rfc9954.html).
+TLS also supplies transcript binding and authenticated handshakes, which this
+browser exchange does not model. For implementation details and limitations,
+see the [demo README](demos/hybrid-wire/README.md#6-a-note-on-the-combiner).
 
 ## What Can Go Wrong
 
