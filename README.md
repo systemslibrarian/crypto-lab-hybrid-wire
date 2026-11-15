@@ -9,7 +9,7 @@ This project is a browser teaching demo of a hybrid key exchange that combines X
 This is where hybrid key exchange runs in the real world, not advice to use this code: the lab exists to show how such a handshake fits together.
 
 - TLS 1.3 on the web. The IETF-named X25519MLKEM768 group pairs X25519 with ML-KEM-768 in the handshake; the demo's *Deployed today* tab lists Chrome 124-era draft Kyber → Chrome 131 standardized ML-KEM and Cloudflare, and Cloudflare and Google have both deployed and measured hybrid post-quantum key exchange on production traffic.
-- Beyond TLS. The same two-wire idea appears in messaging and remote-shell setup: the *Deployed today* tab lists Signal PQXDH (X25519 plus post-quantum prekeys), iCloud PQ3 and OpenSSH 9.0+ (sntrup761x25519-sha512), with AWS s2n-tls offering hybrid TLS for cloud workloads.
+- Beyond TLS. The same two-wire idea appears in messaging and remote-shell setup: the *Deployed today* tab lists Signal PQXDH (X25519 plus post-quantum prekeys), iMessage PQ3 and OpenSSH 9.0+ (sntrup761x25519-sha512), with AWS s2n-tls offering hybrid TLS for cloud workloads.
 - Traffic that must stay confidential for years. Hybrids are enabled today so that traffic recorded now cannot be decrypted later once large-scale quantum computers exist.
 - Not on every link. The extra key and ciphertext sizes (+2,272 bytes vs pure X25519) may be too costly where bytes are critical.
 - Do NOT use this code in production. It is a browser teaching demo of the hybrid handshake, not a vetted, hardened library; use a reviewed TLS stack for real deployments.
@@ -73,3 +73,5 @@ npm run dev
 *"So whether you eat or drink or whatever you do, do it all for the glory of God." — 1 Corinthians 10:31*
 
 Deployment history source: [Google, September 13, 2024 — A new path for Kyber on the web](https://security.googleblog.com/2024/09/a-new-path-for-kyber-on-web.html). These are TLS named key-exchange groups, not cipher suites.
+
+**Standards reviewed 15 November 2026:** the protocol is *iMessage PQ3*, not "iCloud PQ3". Apple's own announcement, [iMessage with PQ3 (Apple Security Research, February 21, 2024)](https://security.apple.com/blog/imessage-pq3/), describes it as iMessage's post-quantum protocol: "a hybrid design that combines Elliptic Curve cryptography with post-quantum encryption both during the initial key establishment and during rekeying", using Kyber-1024 public keys and Kyber-768 for rekeying, rolling out with iOS 17.4, iPadOS 17.4, macOS 14.4 and watchOS 10.4. The *Deployed today* card previously carried the wrong name.

@@ -13,7 +13,7 @@ The crypto is real, not simulated: X25519 comes from the browser's native WebCry
 This is where hybrid key exchange runs in the real world, not advice to use this code.
 
 - TLS 1.3. The IETF `X25519MLKEM768` group pairs X25519 with ML-KEM-768 in the handshake; the *Deployed today* tab lists Chrome 124-era draft Kyber → Chrome 131 standardized ML-KEM and Cloudflare.
-- Messaging and remote shells. The *Deployed today* tab lists Signal PQXDH, iCloud PQ3 and OpenSSH 9.0+ as deployed hybrid key establishment, and AWS s2n-tls as available for cloud workloads.
+- Messaging and remote shells. The *Deployed today* tab lists Signal PQXDH, iMessage PQ3 and OpenSSH 9.0+ as deployed hybrid key establishment, and AWS s2n-tls as available for cloud workloads.
 - Traffic with a long confidentiality lifetime, where harvest-now, decrypt-later risk is part of the threat model.
 - Not on very constrained bandwidth paths, where the additional hybrid overhead can be too expensive.
 - Not this code: it is a teaching demo (see the note above). Use a reviewed TLS stack for real deployments.
@@ -29,7 +29,7 @@ The exhibit is layered for both newcomers and cryptographers:
 1. **Live handshake** — a six-step stepper with a wire diagram whose animation carries meaning: a labelled token rides the blue wire when the X25519 secret is derived, and the purple wire when the ML-KEM ciphertext travels back and the PQ secret is recovered; at step 6 both tokens slide into an HKDF box and the pulse stops. The per-wire byte details, outcome metrics, combiner, and secure chat are revealed progressively so the six-step narrative isn't drowned by a wall of cards.
 2. **Two wires** — sizes and the HKDF combiner formula, fronted by a collapsible **"What is a KEM?"** aside that contrasts X25519 (a symmetric Diffie-Hellman exchange, both sides do the same operation) with ML-KEM (an asymmetric encapsulate → ciphertext → decapsulate flow), which is why the purple wire sends a packet back and the blue wire does not.
 3. **Threat model** — the "prove it yourself" resilience explorer. Toggles define **"broken"** explicitly ("assume the attacker has recovered *this* wire's 32-byte secret") and, when a wire is broken, reveal its live secret bytes as *known to attacker* while the surviving wire's bytes stay masked — so a learner literally sees that HKDF's input is still half-unknown after a single break. The verdict underneath is not a lookup on the two toggles: every repaint runs a real reconstruction against a real AES-256-GCM record and reports what it did, down to a measurement line ("8 derivations · 0 opened the record · best candidate matched 0/32 bytes").
-4. **Deployed today** — real-world hybrid rollouts (Chrome, Cloudflare, Signal PQXDH, AWS s2n-tls, iCloud PQ3, OpenSSH).
+4. **Deployed today** — real-world hybrid rollouts (Chrome, Cloudflare, Signal PQXDH, AWS s2n-tls, iMessage PQ3, OpenSSH).
 5. **Why hybrid** — the rationale, portfolio connections, and a **"Twice as strong? No"** callout that names and refutes the natural wrong guess (hybrid is a hedge in series — break both to win — not a doubling of security bits).
 
 The hybrid security claim is *run*, not encoded: `src/crypto/security.ts` performs the reconstruction and derives the verdict from it, and the interactive explorer and the test suite drive exactly the same attack. The unit tests include the negative case — with both secrets leaked the reconstruction must genuinely recover the key and open the record — so the "still safe" results mean something.
@@ -105,3 +105,5 @@ Request success does not establish publication; inspect current-head CI,
 actual deployment and the public application. Failed requests retain their nonzero status.
 
 Deployment history source: [Google, September 13, 2024 — A new path for Kyber on the web](https://security.googleblog.com/2024/09/a-new-path-for-kyber-on-web.html). These are TLS named key-exchange groups, not cipher suites.
+
+**Standards reviewed 15 November 2026:** the protocol is *iMessage PQ3*, not "iCloud PQ3". Apple's own announcement, [iMessage with PQ3 (Apple Security Research, February 21, 2024)](https://security.apple.com/blog/imessage-pq3/), describes it as iMessage's post-quantum protocol: "a hybrid design that combines Elliptic Curve cryptography with post-quantum encryption both during the initial key establishment and during rekeying", using Kyber-1024 public keys and Kyber-768 for rekeying, rolling out with iOS 17.4, iPadOS 17.4, macOS 14.4 and watchOS 10.4. The *Deployed today* card previously carried the wrong name.

@@ -118,9 +118,9 @@ const deploymentCards = [
     status: 'Available',
   },
   {
-    title: 'iCloud PQ3',
-    scheme: 'Hybrid post-quantum key establishment for Apple messaging security',
-    coverage: 'Apple cloud messaging protections and recovery paths',
+    title: 'iMessage PQ3',
+    scheme: 'Hybrid elliptic-curve plus Kyber key establishment and rekeying for iMessage',
+    coverage: 'Apple Security Research announcement, February 21, 2024: rolling out with iOS 17.4, iPadOS 17.4, macOS 14.4 and watchOS 10.4',
     status: 'Deployed',
   },
   {
