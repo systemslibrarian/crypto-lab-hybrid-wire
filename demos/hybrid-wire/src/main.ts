@@ -864,7 +864,7 @@ function renderWhyTab(): string {
     '<div class="cards-grid">',
     '<div class="connection-card"><h3>X25519 alone</h3><p>Compact and fast, but a future quantum computer could eventually threaten long-term confidentiality of recorded traffic.</p></div>',
     '<div class="connection-card"><h3>ML-KEM alone</h3><p>Post-quantum protection is strong, but deployments often prefer a transitional path that still includes a mature classical primitive.</p></div>',
-    '<div class="connection-card"><h3>Hybrid together</h3><p>NIST SP 800-56C encourages robust combiners. HKDF lets both secrets contribute so the session survives if either primitive remains secure.</p></div>',
+    '<div class="connection-card"><h3>Hybrid together</h3><p>NIST SP 800-56C Rev. 2 <em>permits</em> a “hybrid” shared secret of the form Z′ = Z || T — a standard shared secret followed by an auxiliary one generated some other way — and derives keying material from it exactly as from a standard Z. It permits rather than recommends, and names no pairing. HKDF then lets both secrets contribute, so the session survives if either primitive remains secure.</p></div>',
     '</div>',
     renderTwiceAsStrong(),
     '<h3>Portfolio connection</h3>',
