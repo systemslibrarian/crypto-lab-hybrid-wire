@@ -96,7 +96,8 @@ export async function decryptMessage(session: HybridSession, message: EncryptedM
       asBufferSource(fromBase64(message.ciphertext)),
     );
 
-    return new TextDecoder().decode(plaintext);
+    // A leading U+FEFF belongs to the chat message.
+    return new TextDecoder('utf-8', { ignoreBOM: true }).decode(plaintext);
   } catch (error) {
     throw new Error('Authentication failed: ' + (error as Error).message);
   }

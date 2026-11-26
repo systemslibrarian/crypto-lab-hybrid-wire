@@ -462,11 +462,16 @@ function renderChatSection(): string {
             '<article class="message-card ' + message.sender + '">',
             '<div class="message-meta"><strong>' + message.sender.toUpperCase() + ' → ' + (message.sender === 'alice' ? 'BOB' : 'ALICE') + '</strong>',
             '<span class="status-pill ' + statusClass + '">' + label + '</span></div>',
-            '<p><strong>Plaintext:</strong> ' + escapeHtml(message.plaintext) + '</p>',
+            '<p><strong>Plaintext:</strong> <span class="chat-text">' + escapeHtml(message.plaintext) + '</span></p>',
             '<p><strong>Ciphertext:</strong><br /><code>' + escapeHtml(message.encrypted.ciphertext) + '</code></p>',
             '<p><strong>IV:</strong> <code>' + escapeHtml(message.encrypted.iv) + '</code></p>',
             '<p><strong>Message number:</strong> ' + message.encrypted.messageNumber + '</p>',
-            message.decryptedPlaintext ? '<p><strong>Recipient view:</strong> ' + escapeHtml(message.decryptedPlaintext) + '</p>' : '',
+            message.decryptedPlaintext !== undefined
+              ? '<p><strong>Recipient view:</strong> <span class="chat-text">' + escapeHtml(message.decryptedPlaintext) + '</span></p>'
+              : '',
+            message.verification === 'authenticated' && message.decryptedPlaintext !== message.plaintext
+              ? '<p role="status">The ciphertext authenticated. UTF-8 encoding replaced an unpaired surrogate, so the recovered text differs from the input.</p>'
+              : '',
             message.recipientNote ? '<p><strong>Verification note:</strong> ' + escapeHtml(message.recipientNote) + '</p>' : '',
             '<div class="message-status"><button class="action-button decrypt-button" data-index="' + index + '" aria-label="Decrypt message ' + message.encrypted.messageNumber + ' from ' + message.sender + '">Decrypt</button></div>',
             '</article>',
@@ -1159,8 +1164,8 @@ async function handleSendMessage(): Promise<void> {
     return;
   }
 
-  const plaintext = messageInput.value.trim();
-  if (!plaintext) {
+  const plaintext = messageInput.value;
+  if (!plaintext.trim()) {
     state.notice = 'Enter a message before sending.';
     render();
     return;
@@ -1208,7 +1213,7 @@ async function handleDecrypt(index: number): Promise<void> {
     record.decryptedPlaintext = undefined;
     record.recipientNote = (error as Error).message;
     record.verification = 'tampered';
-    state.notice = 'Decryption failed because the session keys no longer match.';
+    state.notice = 'This record could not be authenticated with the recipient’s session key.';
   }
 
   render();

@@ -90,3 +90,24 @@ test('reset discards an old in-flight send before showing a fresh session', asyn
   await expect(page.locator('.message-card')).toHaveCount(0);
   await expect(page.locator('body')).not.toContainText('old session message');
 });
+
+
+test('authenticated chat preserves exact message text and identifies UTF-8 replacement', async ({ page }) => {
+  await chat(page);
+  const input = page.locator('#message-input');
+  const card = page.locator('.message-card').first();
+  const message = '\uFEFF  Café 🔐  ';
+  await input.fill(message);
+  await page.locator('#send-button').click();
+  await card.locator('.decrypt-button').click();
+  await expect(card.locator('.status-authenticated')).toBeVisible();
+  expect(await card.locator('.chat-text').allTextContents()).toEqual([message, message]);
+
+  await input.evaluate((el: HTMLInputElement) => {
+    el.value = 'A' + String.fromCharCode(0xd800) + 'B';
+  });
+  await page.locator('#send-button').click();
+  await card.locator('.decrypt-button').click();
+  await expect(card.getByRole('status')).toContainText('recovered text differs');
+  await expect(card.locator('.chat-text').last()).toHaveText('A�B');
+});
